@@ -259,6 +259,15 @@ body.touch .tr{transform:scale(.78);transform-origin:top right}
   <ul class="mlist" id="mlist"></ul>
 </aside>
 
+<div id="fsAsk" class="overlay">
+  <div class="pbox">
+    <h2>Full screen?</h2>
+    <p class="sub" style="text-align:center">Coin City plays best when it fills the whole screen.</p>
+    <button class="main" id="fsYes" type="button">Yes, full screen</button>
+    <button id="fsNo" type="button">No thanks</button>
+  </div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 (() => {
@@ -1519,7 +1528,9 @@ function goFullscreen(){
   browserFullscreen();
 }
 if (TG) try { TG.onEvent('fullscreenFailed', browserFullscreen); } catch (e) {}
-function syncFsButtons(){ document.querySelectorAll('.fsBtn').forEach(b => { b.hidden = isFull(); }); }
+function syncFsButtons(){ document.querySelectorAll('.fsBtn').forEach(b => { b.hidden = isFull(); }); if (isFull()) $('fsAsk').hidden = true; }
+$('fsYes').addEventListener('click', () => { $('fsAsk').hidden = true; goFullscreen(); });
+$('fsNo').addEventListener('click', () => { $('fsAsk').hidden = true; });
 document.querySelectorAll('.fsBtn').forEach(b => b.addEventListener('click', goFullscreen));
 document.addEventListener('fullscreenchange', syncFsButtons);
 if (TG) try { TG.onEvent('fullscreenChanged', syncFsButtons); } catch (e) {}
