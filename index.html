@@ -176,7 +176,7 @@ body.touch .tr{transform:scale(.78);transform-origin:top right}
 </div>
 
 <div id="tl" hidden>
-  <div class="tlb"><button id="helpBtn" type="button">Controls (H)</button><button id="muteBtn" type="button">Sound on (M)</button></div>
+  <div class="tlb"><button id="helpBtn" type="button">Controls (H)</button><button id="muteBtn" type="button">Sound on (M)</button><button class="fsBtn" type="button">Full screen</button></div>
   <div class="mission" id="mission"><b id="mTitle"></b><span id="mObj"></span><em id="mTime" hidden></em><small id="mFoot"></small></div>
 </div>
 
@@ -185,6 +185,7 @@ body.touch .tr{transform:scale(.78);transform-origin:top right}
     <h2>Paused</h2>
     <button class="main" id="resume" type="button">Resume</button>
     <button id="pHelp" type="button">Controls</button>
+    <button class="fsBtn" type="button">Full screen</button>
     <button id="toMenu" type="button">Change outfit or gun</button>
   </div>
 </div>
@@ -253,6 +254,7 @@ body.touch .tr{transform:scale(.78);transform-origin:top right}
   </div>
   <button class="play" id="play" type="button">PLAY</button>
   <button class="ghost" id="mHelp" type="button">Controls</button>
+  <button class="ghost fsBtn" type="button">Full screen</button>
   <h2>Missions</h2>
   <ul class="mlist" id="mlist"></ul>
 </aside>
@@ -1504,6 +1506,24 @@ $('mHelp').addEventListener('click', openHelp);
 $('helpBtn').addEventListener('click', openHelp);
 $('helpClose').addEventListener('click', closeHelp);
 $('muteBtn').addEventListener('click', () => setMute(!muted));
+// Full screen: Telegram's own mode first, then the browser's, then open the game in the browser.
+const TG = window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData ? window.Telegram.WebApp : null;
+const isFull = () => !!document.fullscreenElement || !!(TG && TG.isFullscreen);
+function openOutside(){ if (TG) { showBanner('OPENING IN YOUR BROWSER', 'Full screen is not available in this Telegram app', 2.5); TG.openLink(location.href); } }
+function browserFullscreen(){
+  if (document.fullscreenEnabled && !document.fullscreenElement) document.documentElement.requestFullscreen().catch(openOutside);
+  else openOutside();
+}
+function goFullscreen(){
+  if (TG && TG.isVersionAtLeast && TG.isVersionAtLeast('8.0') && !TG.isFullscreen) { try { TG.requestFullscreen(); return; } catch (e) {} }
+  browserFullscreen();
+}
+if (TG) try { TG.onEvent('fullscreenFailed', browserFullscreen); } catch (e) {}
+function syncFsButtons(){ document.querySelectorAll('.fsBtn').forEach(b => { b.hidden = isFull(); }); }
+document.querySelectorAll('.fsBtn').forEach(b => b.addEventListener('click', goFullscreen));
+document.addEventListener('fullscreenchange', syncFsButtons);
+if (TG) try { TG.onEvent('fullscreenChanged', syncFsButtons); } catch (e) {}
+syncFsButtons();
 $('wasted').addEventListener('pointerdown', () => { if (P.dead && P.deadT > 1.5) respawn(); });
 function respawn(){
   P.inCar = null;
