@@ -71,9 +71,8 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-o
 #hp{background:linear-gradient(#e0475a,var(--blood))}
 #ar{background:linear-gradient(#dfe8f0,var(--armour))}
 .money{font:24px var(--display);color:var(--cash);text-shadow:2px 2px 0 #000,-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000;font-variant-numeric:tabular-nums;white-space:nowrap}
-/* San Andreas wanted stars: hollow dark outlines, gold bevelled when lit */
-.stars{font-size:28px;letter-spacing:1px;color:transparent;-webkit-text-stroke:1.2px rgba(0,0,0,.75);text-shadow:2px 2px 0 rgba(0,0,0,.35)}
-.stars .on{background:linear-gradient(#fff6c2,#f3bd43 55%,#d8961c);-webkit-background-clip:text;background-clip:text;-webkit-text-stroke:1.2px #6b4a06}
+.stars{font-size:26px;letter-spacing:2px;color:rgba(255,255,255,.18);text-shadow:2px 2px 0 #000}
+.stars .on{color:var(--gold)}
 .stars.flash .on{animation:blink .25s steps(2) infinite}
 @keyframes blink{50%{color:#fff}}
 .golden{font:600 12px var(--body);color:rgba(255,255,255,.75);text-shadow:1px 1px 0 #000;white-space:nowrap}
@@ -117,6 +116,17 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-o
 .keys{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:14px;align-items:center}
 .keys kbd{font:600 12px var(--body);color:var(--fg);background:#262a36;border:1px solid var(--line);border-radius:4px;padding:2px 7px;white-space:nowrap;justify-self:start}
 .help .main{font:600 16px var(--body);padding:12px;border-radius:8px;border:0;align-self:center;min-width:180px}
+
+/* to-do list */
+.todo{width:min(640px,100%)}
+.todo .sub{margin:0}
+.todoGroups{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px 24px}
+.todoGroups h3{margin:0 0 6px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.todoGroups ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:5px}
+.todoGroups li{display:grid;grid-template-columns:20px 1fr;gap:8px;font-size:14px;line-height:1.35;align-items:start}
+.todoGroups li::before{content:"";width:16px;height:16px;margin-top:1px;border:2px solid var(--line);border-radius:4px}
+.todoGroups li.ok{color:var(--muted)}
+.todoGroups li.ok::before{background:var(--cash);border-color:var(--cash);box-shadow:inset 0 0 0 2px #141720}
 
 /* casino */
 .casino{width:min(560px,100%);gap:12px}
@@ -216,7 +226,7 @@ body.touch .tr{transform:scale(.78);transform-origin:top right}
 </div>
 
 <div id="tl" hidden>
-  <div class="tlb"><button id="helpBtn" type="button">Controls (H)</button><button id="muteBtn" type="button">Sound on (M)</button><button class="fsBtn" type="button">Full screen</button></div>
+  <div class="tlb"><button id="todoBtn" type="button">To-do (T)</button><button id="helpBtn" type="button">Controls (H)</button><button id="muteBtn" type="button">Sound on (M)</button><button class="fsBtn" type="button">Full screen</button></div>
   <div class="mission" id="mission"><b id="mTitle"></b><span id="mObj"></span><em id="mTime" hidden></em><small id="mFoot"></small></div>
 </div>
 
@@ -224,9 +234,19 @@ body.touch .tr{transform:scale(.78);transform-origin:top right}
   <div class="pbox">
     <h2>Paused</h2>
     <button class="main" id="resume" type="button">Resume</button>
+    <button id="pTodo" type="button">To-do list</button>
     <button id="pHelp" type="button">Controls</button>
     <button class="fsBtn" type="button">Full screen</button>
     <button id="toMenu" type="button">Change outfit or gun</button>
+  </div>
+</div>
+
+<div id="todo" class="overlay" hidden>
+  <div class="help todo">
+    <div class="chead"><h2>To-do list</h2><div class="cwallet">Done <b id="todoCount">0/0</b></div></div>
+    <p class="sub">Everything there is to do in Coin City. Items tick off by themselves when you do them.</p>
+    <div class="todoGroups" id="todoList"></div>
+    <button class="main" id="todoClose" type="button">Back to the game</button>
   </div>
 </div>
 
@@ -294,7 +314,7 @@ body.touch .tr{transform:scale(.78);transform-origin:top right}
 
 <aside class="menu" id="menu">
   <h1 class="title">COIN<br>CITY</h1>
-  <p class="sub">Doge runs this town. Pick a fit and a piece, then take jobs, hold up two shops, crack ATMs, hit the jewellery store, gamble at the casino, buy a tank, make it rain at the Kitty Kat Club, hit the beach and keep the Alley Cats and Green Street in check.</p>
+  <p class="sub">Doge runs this town. Pick a fit and a piece, then take jobs, hold up four shops, crack ATMs, hit three jewellery stores, gamble at the casino, buy a tank, make it rain at the Kitty Kat Club, hit the beach and keep the Alley Cats and Green Street in check.</p>
   <h2>Outfit</h2>
   <div class="opts" id="outfits"></div>
   <h2>Starting weapon</h2>
@@ -304,6 +324,7 @@ body.touch .tr{transform:scale(.78);transform-origin:top right}
     <input id="ticker" type="text" maxlength="8" value="COIN" autocomplete="off">
   </div>
   <button class="play" id="play" type="button">PLAY</button>
+  <button class="ghost" id="mTodo" type="button">To-do list</button>
   <button class="ghost" id="mHelp" type="button">Controls</button>
   <button class="ghost fsBtn" type="button">Full screen</button>
   <h2>Missions</h2>
@@ -363,12 +384,11 @@ const canvas = $('c');
 const renderer = new THREE.WebGLRenderer({canvas, antialias: true});
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
 const scene = new THREE.Scene();
-// San Andreas daylight: a hard blue sky, a warm low sun and a grey haze that swallows the far end of the street
-scene.background = new THREE.Color(0x6fb6ee);
-scene.fog = new THREE.Fog(0xc2d6e2, 45, 165);
+scene.background = new THREE.Color(0x8fd0f5);
+scene.fog = new THREE.Fog(0xb8e0f2, 50, 175);
 const camera = new THREE.PerspectiveCamera(62, 1, 0.1, 500);
-scene.add(new THREE.HemisphereLight(0xdcefff, 0x9a7f5a, 0.72));
-const sun = new THREE.DirectionalLight(0xffe4b4, 0.9); sun.position.set(60, 55, 30); scene.add(sun);
+scene.add(new THREE.HemisphereLight(0xe6f5ff, 0x8a7a5c, 0.8));
+const sun = new THREE.DirectionalLight(0xfff0d0, 0.75); sun.position.set(40, 80, 25); scene.add(sun);
 function resize(){ renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); }
 addEventListener('resize', resize); resize();
 
@@ -405,19 +425,8 @@ const SHOPS = [
   {i: 6, j: 11, label: 'Dog Mart', sign: 'DOG MART', bg: '#e07a1f', uniform: 0xe07a1f},
 ];
 
-// Road: sun-bleached asphalt with tar patches and cracks. Pavement: four concrete slabs per tile with worn edges.
-const asphaltT = tex(64, 64, (g, w, h) => {
-  g.fillStyle = '#6a6b6e'; g.fillRect(0, 0, w, h); speck(g, w, h, .12);
-  for (let i = 0; i < 4; i++) { g.fillStyle = `rgba(0,0,0,${rand(.04, .09)})`; g.beginPath(); g.ellipse(rand(0, w), rand(0, h), rand(8, 18), rand(5, 12), rand(0, 3), 0, TAU); g.fill(); }
-  g.strokeStyle = 'rgba(0,0,0,.16)'; g.lineWidth = 1;
-  for (let i = 0; i < 3; i++) { g.beginPath(); let x = rand(0, w), y = rand(0, h); g.moveTo(x, y); for (let k = 0; k < 5; k++) { x += rand(-8, 8); y += rand(-8, 8); g.lineTo(x, y); } g.stroke(); }
-}, WORLD / 6, WORLD / 6);
-const sidewalkT = tex(32, 32, (g, w, h) => {
-  g.fillStyle = '#b9b5aa'; g.fillRect(0, 0, w, h); speck(g, w, h, .15);
-  g.fillStyle = 'rgba(0,0,0,.22)'; g.fillRect(0, 0, w, 1); g.fillRect(0, 0, 1, h); g.fillRect(0, 16, w, 1); g.fillRect(16, 0, 1, h);
-  g.fillStyle = 'rgba(255,255,255,.12)'; g.fillRect(1, 1, w, 1); g.fillRect(1, 17, w, 1);
-  for (let i = 0; i < 3; i++) { g.fillStyle = `rgba(0,0,0,${rand(.05, .12)})`; g.beginPath(); g.ellipse(rand(0, w), rand(0, h), rand(3, 7), rand(2, 4), rand(0, 3), 0, TAU); g.fill(); }
-});
+const asphaltT = tex(64, 64, (g, w, h) => { g.fillStyle = '#55565a'; g.fillRect(0, 0, w, h); speck(g, w, h, .22); }, WORLD / 6, WORLD / 6);
+const sidewalkT = tex(32, 32, (g, w, h) => { g.fillStyle = '#aaa79e'; g.fillRect(0, 0, w, h); speck(g, w, h, .15); g.fillStyle = 'rgba(0,0,0,.18)'; g.fillRect(0, 0, w, 1); g.fillRect(0, 0, 1, h); });
 const grassT = tex(32, 32, (g, w, h) => { g.fillStyle = '#5f8a3f'; g.fillRect(0, 0, w, h); speck(g, w, h, .3); });
 const sandT = tex(32, 32, (g, w, h) => { g.fillStyle = '#d6c393'; g.fillRect(0, 0, w, h); speck(g, w, h, .2); }, 90, 90);
 const dirtT = tex(32, 32, (g, w, h) => { g.fillStyle = '#7a6448'; g.fillRect(0, 0, w, h); speck(g, w, h, .35); });
@@ -664,10 +673,10 @@ scene.add(new THREE.Mesh(merge(sidewalkGeos), lam(0xffffff, sidewalkT)));
 }
 {
   const trunks = [], crowns = [], mtx = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
-  const leafBase = new THREE.PlaneGeometry(1.3, 4.4).translate(0, 2.2, 0);
+  const leafBase = new THREE.PlaneGeometry(1.1, 3.6).translate(0, 1.8, 0);
   for (const [x, z] of palmSpots) {
-    const h = rand(8, 13), lean = rand(-.1, .1); // tall thin San Andreas palms
-    const tg = new THREE.CylinderGeometry(.14, .3, h, 6, 1);
+    const h = rand(6, 9.5), lean = rand(-.08, .08);
+    const tg = new THREE.CylinderGeometry(.16, .26, h, 6, 1);
     const uv = tg.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setY(i, uv.getY(i) * h);
     e.set(lean, 0, lean); q.setFromEuler(e); mtx.compose(new THREE.Vector3(x, h / 2, z), q, new THREE.Vector3(1, 1, 1));
     trunks.push(tg.applyMatrix4(mtx));
@@ -705,8 +714,7 @@ const OUTFITS = [
   {id: 'ski', name: 'Ski Mask', tag: 'Black hoodie, camo cargos, mask on'},
   {id: 'drip', name: 'Drip', tag: 'Red tracksuit, white kicks, shades'},
 ];
-// Block Doge: the original coloured-box build. Kept as the fallback for buildDoge below.
-function buildDogeBlocks(outfit){
+function buildDoge(outfit){
   const {g, body} = rig(), OR = 0xe08a3c, WH = 0xf6ecdc;
   const beach = outfit === 'beach', ski = outfit === 'ski', drip = outfit === 'drip';
   const top = beach ? 0xf2f2ee : ski ? 0x1d1e24 : 0xb3202a;
@@ -777,125 +785,6 @@ function buildDogeBlocks(outfit){
   g.scale.setScalar(.82);
   return {g, body, legL, legR, armL, armR, armLen: 1.02};
 }
-// ---------- Doge: PS2-style polygon model ----------
-// Six-to-eight-sided tapered tubes with flat facets, painted textures and per-vertex lighting, like a San Andreas ped.
-// Textures are painted so the light falls down the front of each limb (u = 0 wraps at both edges) and the back stays dark.
-// buildDoge tries this first and falls back to block Doge if anything throws.
-function ptex(w, h, draw){ const t = tex(w, h, draw); t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter; t.repeat.set(1, 1); return t; }
-function facet(geo){ const g = geo.toNonIndexed(); g.computeVertexNormals(); return g; }
-function tube(parent, rt, rb, h, seg, color, x, y, z, map, sx = 1, sz = 1){ const m = new THREE.Mesh(facet(new THREE.CylinderGeometry(rt, rb, h, seg)), lam(color, map)); m.position.set(x, y, z); m.scale.set(sx, 1, sz); parent.add(m); return m; }
-function orb(parent, r, color, x, y, z, sx = 1, sy = 1, sz = 1, map, ws = 8, hs = 6){ const m = new THREE.Mesh(facet(new THREE.SphereGeometry(r, ws, hs)), lam(color, map)); m.position.set(x, y, z); m.scale.set(sx, sy, sz); parent.add(m); return m; }
-function streaks(g, w, h, n, light, dark, a, y0 = 0, y1 = h){ g.globalAlpha = a; for (let i = 0; i < n; i++) { g.fillStyle = Math.random() < .5 ? light : dark; g.fillRect(rand(0, w), rand(y0, y1), 1, rand(3, 9)); } g.globalAlpha = 1; }
-function furTex(base, light, dark){
-  return ptex(64, 64, (g, w, h) => {
-    const gr = g.createLinearGradient(0, 0, w, 0);
-    gr.addColorStop(0, light); gr.addColorStop(.2, base); gr.addColorStop(.5, dark); gr.addColorStop(.8, base); gr.addColorStop(1, light);
-    g.fillStyle = gr; g.fillRect(0, 0, w, h);
-    streaks(g, w, h, 90, light, dark, .35);
-  });
-}
-const dogeFurT = furTex('#e08a3c', '#f5b36a', '#b8651f');
-const dogeArmT = ptex(64, 64, (g, w, h) => { // fur plus a bicep highlight at the front and a shadow line down each side
-  g.drawImage(dogeFurT.image, 0, 0);
-  g.fillStyle = 'rgba(255,230,180,.38)'; for (const x of [4, 60]) { g.beginPath(); g.ellipse(x, 24, 10, 14, 0, 0, TAU); g.fill(); }
-  g.fillStyle = 'rgba(120,60,10,.3)'; for (const x of [20, 44]) { g.beginPath(); g.ellipse(x, 30, 4, 16, 0, 0, TAU); g.fill(); }
-});
-const dogeHeadT = ptex(64, 32, (g, w, h) => { // equirectangular skull: front at x = 16, back at x = 48
-  g.fillStyle = '#e08a3c'; g.fillRect(0, 0, w, h);
-  g.fillStyle = 'rgba(150,70,15,.3)'; g.fillRect(36, 0, 28, h);
-  g.fillStyle = '#f7efe0';
-  g.beginPath(); g.ellipse(16, 22, 11, 7.5, 0, 0, TAU); g.fill();
-  for (const s of [-1, 1]) { g.beginPath(); g.ellipse(16 + s * 5.5, 9.5, 2.6, 2, 0, 0, TAU); g.fill(); }
-  g.fillStyle = '#e08a3c'; g.beginPath(); g.ellipse(16, 15.5, 3.5, 3.5, 0, 0, TAU); g.fill();
-  streaks(g, w, h, 70, '#f5b36a', '#b8651f', .3, 0, 13);
-});
-const tankT = ptex(64, 64, (g, w, h) => {
-  g.fillStyle = '#f3f3ef'; g.fillRect(0, 0, w, h);
-  g.globalAlpha = .5; for (let i = 0; i < 40; i++) { g.fillStyle = Math.random() < .6 ? '#dcdcd6' : '#ffffff'; g.fillRect(rand(0, w), rand(0, h), rand(1, 2), rand(6, 20)); } g.globalAlpha = 1;
-  g.fillStyle = 'rgba(0,0,0,.12)'; g.fillRect(14, 0, 4, h); g.fillRect(46, 0, 4, h);
-  g.fillStyle = '#e08a3c';
-  for (const x of [16, 48]) { g.beginPath(); g.ellipse(x, 0, 9, 18, 0, 0, TAU); g.fill(); }
-  for (const x of [0, 64]) { g.beginPath(); g.ellipse(x, 0, 8, 10, 0, 0, TAU); g.fill(); }
-  g.beginPath(); g.ellipse(32, 0, 6, 6, 0, 0, TAU); g.fill();
-  g.fillStyle = 'rgba(0,0,0,.1)'; for (const x of [0, 64]) { g.beginPath(); g.ellipse(x, 26, 10, 4, 0, 0, TAU); g.fill(); }
-});
-const hibiscusT = ptex(64, 64, (g, w, h) => {
-  g.fillStyle = '#2b66ad'; g.fillRect(0, 0, w, h);
-  for (let i = 0; i < 26; i++) { g.fillStyle = pick(['#1d4a85', '#3d7fc4', '#245a9c', '#4a8fd0']); g.beginPath(); g.ellipse(rand(0, w), rand(0, h), rand(4, 9), rand(3, 6), rand(0, 3), 0, TAU); g.fill(); }
-  for (let i = 0; i < 7; i++) {
-    const x = rand(4, 60), y = rand(10, 60), r = rand(4, 6);
-    g.fillStyle = 'rgba(190,220,240,.85)';
-    for (let p = 0; p < 5; p++) { const a = p / 5 * TAU; g.beginPath(); g.ellipse(x + Math.cos(a) * r * .7, y + Math.sin(a) * r * .7, r * .55, r * .35, a, 0, TAU); g.fill(); }
-    g.fillStyle = '#2b66ad'; g.beginPath(); g.arc(x, y, 1.2, 0, TAU); g.fill();
-  }
-  g.fillStyle = '#1d4a85'; g.fillRect(0, 0, w, 5);
-  g.strokeStyle = '#f4f4f0'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(2, 4); g.lineTo(5, 14); g.moveTo(62, 4); g.lineTo(59, 14); g.stroke();
-});
-function clothTex(base, light, dark, stripe, extra){
-  return ptex(64, 64, (g, w, h) => {
-    g.fillStyle = base; g.fillRect(0, 0, w, h);
-    g.globalAlpha = .45; for (let i = 0; i < 40; i++) { g.fillStyle = Math.random() < .5 ? light : dark; g.fillRect(rand(0, w), rand(0, h), rand(1, 3), rand(8, 24)); } g.globalAlpha = 1;
-    g.fillStyle = dark; g.fillRect(15, 0, 2, h); g.fillRect(47, 0, 2, h);
-    if (stripe) { g.fillStyle = stripe; g.fillRect(12, 0, 3, h); g.fillRect(49, 0, 3, h); }
-    if (extra) extra(g, w, h);
-  });
-}
-const hoodieT = clothTex('#1d1e24', '#34363f', '#0c0c10', null, (g, w, h) => {
-  g.strokeStyle = '#0c0c10'; g.lineWidth = 1.5; g.strokeRect(-6, 40, 16, 16); g.strokeRect(54, 40, 16, 16);
-  g.strokeStyle = '#d8d8d8'; g.beginPath(); g.moveTo(3, 2); g.lineTo(5, 18); g.moveTo(61, 2); g.lineTo(59, 18); g.stroke();
-});
-const trackT = clothTex('#b3202a', '#d23a44', '#7e1118', '#f2f2f2');
-function buildDogePoly(outfit){
-  const {g, body} = rig(), OR = 0xe08a3c, WH = 0xf6ecdc, DK = 0x111111, W = 0xffffff;
-  const beach = outfit === 'beach', ski = outfit === 'ski', drip = outfit === 'drip';
-  const topT = beach ? tankT : ski ? hoodieT : trackT, legT = beach ? hibiscusT : ski ? camoT : trackT, sleeveT = beach ? dogeArmT : topT;
-  tube(body, .36, .40, .3, 8, W, 0, 1.08, 0, legT, 1.2, .78);
-  tube(body, .44, .35, .72, 8, W, 0, 1.52, 0, topT, 1.18, .72);
-  if (ski) orb(body, .3, W, 0, 1.9, -.12, 1.4, .5, 1, hoodieT);
-  tube(body, .13, .16, .26, 6, W, 0, 1.98, 0, ski ? hoodieT : dogeFurT);
-  const legL = pivot(body, -.2, 1.0, 0), legR = pivot(body, .2, 1.0, 0), kneeL = pivot(legL, 0, -.48, 0), kneeR = pivot(legR, 0, -.48, 0);
-  for (const [L, K] of [[legL, kneeL], [legR, kneeR]]) {
-    tube(L, .2, .21, .5, 7, W, 0, -.24, 0, legT, 1.05, .95);
-    if (beach) {
-      tube(K, .15, .1, .42, 6, W, 0, -.2, 0, dogeFurT);
-      part(K, .2, .07, .32, WH, 0, -.41, .06);
-      part(K, .26, .04, .44, 0x6b4323, 0, -.465, .07);
-      part(K, .02, .04, .14, 0x2a1a10, 0, -.43, .14);
-    } else {
-      tube(K, .16, .13, .44, 6, W, 0, -.2, 0, legT);
-      part(K, .22, .1, .34, drip ? 0xf4f4f4 : 0x1a1a1e, 0, -.42, .06);
-      part(K, .24, .04, .38, drip ? 0xe8e8e8 : 0x3a3a40, 0, -.475, .07);
-    }
-  }
-  const armL = pivot(body, -.56, 1.84, 0), armR = pivot(body, .56, 1.84, 0), elbowL = pivot(armL, 0, -.48, 0), elbowR = pivot(armR, 0, -.48, 0);
-  for (const [A, E] of [[armL, elbowL], [armR, elbowR]]) {
-    orb(A, .17, W, 0, -.02, 0, 1.1, .9, 1, sleeveT);
-    tube(A, .15, .13, .48, 6, W, 0, -.25, 0, sleeveT);
-    tube(E, .13, .09, .42, 6, W, 0, -.2, 0, beach ? dogeFurT : sleeveT);
-    orb(E, .12, beach ? WH : OR, 0, -.44, 0, 1, 1.05, 1);
-  }
-  const handR = pivot(elbowR, 0, -.47, 0);
-  const head = pivot(body, 0, 2.38, 0); head.scale.setScalar(1.14); // big Shiba head, like the reference
-  orb(head, .36, W, 0, 0, 0, 1, .92, 1.02, dogeHeadT, 10, 7);
-  const snout = new THREE.Mesh(facet(new THREE.CylinderGeometry(.15, .22, .34, 7).rotateX(Math.PI / 2).scale(1.15, .8, 1)), lam(ski ? 0x141418 : WH)); snout.position.set(0, -.1, .4); head.add(snout);
-  orb(head, .065, DK, 0, -.045, .59, 1.2, .8, .9, null, 6, 4);
-  part(head, .16, .02, .03, 0x3a2216, 0, -.2, .54);
-  for (const s of [-1, 1]) {
-    orb(head, .055, 0x2a1608, s * .15, .05, .31, 1, 1, .6, null, 6, 4);
-    const ear = new THREE.Mesh(facet(new THREE.ConeGeometry(.15, .34, 4)), lam(OR)); ear.position.set(s * .23, .4, -.02); ear.rotation.y = Math.PI / 4; ear.rotation.z = -s * .22; head.add(ear);
-    const inner = new THREE.Mesh(facet(new THREE.ConeGeometry(.08, .2, 4)), lam(WH)); inner.position.set(s * .22, .38, .06); inner.rotation.y = Math.PI / 4; inner.rotation.z = -s * .22; head.add(inner);
-  }
-  if (ski) {
-    orb(head, .385, 0x141418, 0, 0, -.01, 1, .94, 1.02, null, 10, 7);
-    part(head, .5, .14, .03, OR, 0, .05, .385);
-    for (const s of [-1, 1]) part(head, .1, .06, .02, DK, s * .15, .05, .405);
-    part(head, .18, .07, .02, 0xd06a4a, 0, -.2, .565);
-  }
-  if (drip) { part(head, .54, .11, .04, 0x0a0a0a, 0, .06, .33); for (const s of [-1, 1]) part(head, .03, .04, .3, 0x0a0a0a, s * .28, .06, .18); }
-  g.scale.setScalar(.82);
-  return {g, body, legL, legR, armL, armR, kneeL, kneeR, elbowL, elbowR, handR, head, armLen: .95};
-}
-function buildDoge(outfit){ try { return buildDogePoly(outfit); } catch (e) { console.warn('Polygon Doge failed, using block Doge', e); return buildDogeBlocks(outfit); } }
 const SKIN = [0xe8c4a2, 0xc68b5e, 0x8d5a3b, 0xf1d3b8, 0x6b4430];
 const SHIRT = [0xd64545, 0xe8e8e8, 0x3d7dd6, 0xf0b429, 0x2fa36b, 0x7a4fd1, 0x222222, 0xe67e22, 0x9fd3e8];
 const PANTS = [0x2b3445, 0x5c4a36, 0x1e1e22, 0x6d7a8a, 0x3a5a3a];
@@ -1007,12 +896,10 @@ function makeGun(key){
   return g;
 }
 function attachGun(m, key){
-  if (m.gun) m.gun.parent.remove(m.gun);
+  if (m.gun) m.armR.remove(m.gun);
   m.gun = null; m.longGun = false;
   if (!key || key === 'fists') return;
-  m.gun = makeGun(key); m.longGun = GUNS[key].len > .7;
-  if (m.handR) { m.gun.position.set(0, 0, .06); m.handR.add(m.gun); } // polygon Doge: the gun follows the forearm
-  else { m.gun.position.set(0, -m.armLen, .06); m.armR.add(m.gun); }
+  m.gun = makeGun(key); m.longGun = GUNS[key].len > .7; m.gun.position.set(0, -m.armLen, .06); m.armR.add(m.gun);
 }
 function animate(m, speed, dt, aimPitch){
   m.walkT = (m.walkT || 0) + dt * Math.max(speed, .01) * 1.9;
@@ -1021,13 +908,6 @@ function animate(m, speed, dt, aimPitch){
   if (m.punchT > 0) { m.punchT -= dt; m.armR.rotation.x = -1.6 * Math.sin(clamp(1 - m.punchT / .3, 0, 1) * Math.PI); }
   else m.armR.rotation.x = aimPitch !== null ? -Math.PI / 2 + aimPitch : m.longGun ? -.9 : s * .8;
   m.body.position.y = Math.abs(Math.cos(m.walkT)) * a * .08;
-  if (m.kneeL) { // polygon Doge: knees bend on the forward swing, elbows stay slightly bent unless aiming
-    const w = m.walkT, bend = a * 1.1, rest = -(.35 + a * .45);
-    m.kneeL.rotation.x = bend * Math.max(0, -Math.cos(w)); m.kneeR.rotation.x = bend * Math.max(0, Math.cos(w));
-    m.elbowL.rotation.x = rest;
-    m.elbowR.rotation.x = m.punchT > 0 ? rest * .3 : aimPitch !== null || m.longGun ? 0 : rest;
-    m.head.rotation.z = Math.sin(w * .5) * a * .05;
-  }
 }
 
 // ---------- audio ----------
@@ -1321,7 +1201,7 @@ function nearStage(){
 const billGeo = new THREE.PlaneGeometry(.34, .17), billMat = new THREE.MeshBasicMaterial({color: 0x6fd36a, side: THREE.DoubleSide});
 function throwCash(t){
   if (money < 10) { SFX.empty(); showBanner('NOT ENOUGH CASH', 'You need $10 to make it rain', 1.5, true); return; }
-  money -= 10; SFX.coin();
+  money -= 10; SFX.coin(); todo('club');
   if (t.d) t.d.spin = 3;
   if (t.s) t.s.dance = 6;
   P.yaw = Math.atan2(t.x - P.x, t.z - P.z); P.m.punchT = .3;
@@ -1371,9 +1251,10 @@ if (GUNS[saved.gun] && saved.gun !== 'fists') P.gun = saved.gun;
 if (saved.ticker) ticker = saved.ticker;
 const done = new Set(Array.isArray(saved.done) ? saved.done : []);
 const owned = new Set(Array.isArray(saved.owned) ? saved.owned : []);
+const todoDone = new Set(Array.isArray(saved.todo) ? saved.todo : []);
 money = Math.max(0, Math.floor(+saved.money || 0));
 if (TEST) { money = Math.max(money, 999999); ['sports', 'super', 'muscle', 'lowrider', 'armored', 'tank', 'heli'].forEach(t => owned.add(t)); }
-function save(){ try { localStorage.setItem(SAVE_KEY, JSON.stringify({outfit: P.outfit, gun: P.gun === 'fists' ? 'pistol' : P.gun, ticker, done: [...done], owned: [...owned], money})); } catch (e) {} }
+function save(){ try { localStorage.setItem(SAVE_KEY, JSON.stringify({outfit: P.outfit, gun: P.gun === 'fists' ? 'pistol' : P.gun, ticker, done: [...done], owned: [...owned], todo: [...todoDone], money})); } catch (e) {} }
 setInterval(save, 5000);
 function setOutfit(id){
   if (P.m) scene.remove(P.m.g);
@@ -1435,7 +1316,7 @@ function panicNear(x, z, r){
   for (const p of peds) if (!p.dead && (p.x - x) ** 2 + (p.z - z) ** 2 < r * r) p.panic = rand(4, 7);
   for (const s of strollers) if ((s.x - x) ** 2 + (s.z - z) ** 2 < r * r) { s.panic = rand(4, 7); s.dance = 0; }
 }
-function crime(h){ heat += h; lastCrime = time; const w = Math.min(5, 1 + Math.floor(heat / 3)); if (w > wanted) starFlash = 1.5; wanted = w; }
+function crime(h){ heat += h; lastCrime = time; const w = Math.min(5, 1 + Math.floor(heat / 3)); if (w > wanted) starFlash = 1.5; wanted = w; if (w >= 5) todo('stars5'); }
 function hurtPlayer(n, quiet){
   if (P.dead) return;
   const a = Math.min(P.armour, n); P.armour -= a; P.hp -= n - a; hurt = .5;
@@ -1458,6 +1339,7 @@ function kill(ch, byPlayer){
     if (!gang) crime(ch.kind === 'cop' ? 2 : 1);
     if (M && M.def.onKill) M.def.onKill(M, ch);
     if (gang) for (const c of LISTS[ch.kind]) if (!c.dead && (c.x - ch.x) ** 2 + (c.z - ch.z) ** 2 < 900) c.angry = 15;
+    if (gang) todo('gang');
   }
 }
 const camDir = new THREE.Vector3(), tmpV = new THREE.Vector3(), tmpV2 = new THREE.Vector3();
@@ -1567,7 +1449,7 @@ function toggleCar(){
   if (P.inCar) {
     const c = P.inCar, rx = -Math.cos(c.yaw), rz = Math.sin(c.yaw);
     if (c.T.heli && c.y > heliFloor(c.x, c.z) + .6) { showBanner('LAND FIRST', 'Land on the ground or a roof to get out', 1.6, true); return; }
-    P.y = c.T.heli ? c.y : 0; P.vy = 0; P.fallFrom = P.y;
+    P.y = c.T.heli ? c.y : 0; P.vy = 0; P.fallFrom = P.y; if (c.T.heli && c.y > groundY(c.x, c.z) + 1) todo('roof');
     let placed = false;
     for (const s of c.T.tank ? [-2.8, 2.8, -3.6, 3.6] : [-2.2, 2.2, -3, 3]) { const x = c.x + rx * s, z = c.z + rz * s; if (!blockedP(x, z, .45) && roofAt(x, z, P.y + .6) >= P.y - .3) { P.x = x; P.z = z; placed = true; break; } }
     if (!placed) { P.x = c.x; P.z = c.z; }
@@ -1577,7 +1459,7 @@ function toggleCar(){
     if (c.ai === 'traffic') panicNear(c.x, c.z, 12);
     if (c.police) crime(2);
     c.ai = null;
-    P.inCar = c; P.m.g.visible = false; chaseYaw = c.yaw; carLook = 0; P.reloadT = 0; SFX.door();
+    P.inCar = c; P.m.g.visible = false; chaseYaw = c.yaw; carLook = 0; P.reloadT = 0; SFX.door(); todo('drive'); if (c.T.heli) todo('heli');
   }
 }
 
@@ -1605,7 +1487,7 @@ function killCarCop(c, o, byPlayer){
   const rx = -Math.cos(c.yaw), rz = Math.sin(c.yaw);
   burst(new THREE.Vector3(c.x, 1.4, c.z), 'blood', 8);
   addDrop(c.x + rx * 2.2, c.z + rz * 2.2, 5);
-  if (byPlayer) crime(2);
+  if (byPlayer) { crime(2); todo('carcop'); }
   if (!aliveCops(c).length) { c.ai = null; c.occupants = null; }
 }
 function policeDrive(c, dt){
@@ -1782,6 +1664,7 @@ addEventListener('keydown', e => {
   if ([' ', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) e.preventDefault();
   if (k === 'm' && !e.repeat) setMute(!muted);
   if (k === 'h' && !e.repeat) { if ($('help').hidden) openHelp(); else closeHelp(); return; }
+  if (k === 't' && !e.repeat) { if ($('todo').hidden) openTodo(); else closeTodo(); return; }
   if (state !== 'play' || e.repeat) return;
   if (k === 'e') useKey();
   if (k === 'f') punch();
@@ -1881,6 +1764,8 @@ $('pHelp').addEventListener('click', openHelp);
 $('mHelp').addEventListener('click', openHelp);
 $('helpBtn').addEventListener('click', openHelp);
 $('helpClose').addEventListener('click', closeHelp);
+['todoBtn', 'pTodo', 'mTodo'].forEach(id => $(id).addEventListener('click', openTodo));
+$('todoClose').addEventListener('click', closeTodo);
 $('muteBtn').addEventListener('click', () => setMute(!muted));
 // Full screen: Telegram's own mode first, then the browser's, then open the game in the browser.
 const TG = window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData ? window.Telegram.WebApp : null;
@@ -2243,6 +2128,7 @@ const radar = $('radar'), rctx = radar.getContext('2d');
 const fmtTime = s => { const t = Math.max(0, Math.ceil(s)); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); };
 function updateHUD(dt){
   updateGolden(dt);
+  if (P.x > WORLD + 2 && !P.inCar) todo('beach');
   hpEl.style.width = Math.max(0, P.hp) + '%';
   arEl.style.width = P.armour + '%'; $('arWrap').style.visibility = P.armour > 0 ? 'visible' : 'hidden';
   moneyEl.textContent = '$' + ticker + ' ' + String(money).padStart(6, '0');
@@ -2327,7 +2213,7 @@ function blowUp(c){
     if (hitBuilding(P.x, P.z, .45)) { P.x = c.x; P.z = c.z + 2.6; }
     P.m.g.visible = true; camYaw = chaseYaw + carLook; carLook = 0;
   }
-  for (const o of aliveCops(c)) killCarCop(c, o, true);
+  for (const o of aliveCops(c)) killCarCop(c, o, true); todo('boom');
   explode(new THREE.Vector3(c.x, c.y + 1, c.z));
   c.g.traverse(o => { if (o.isMesh && o.material !== shadowMat) o.material = burntMat; });
   c.speed = 0;
@@ -2348,7 +2234,7 @@ function fireShell(c){
   const aim = camera.position.clone().addScaledVector(camDir, hit.t), d = aim.sub(muzzle).normalize();
   const m = new THREE.Mesh(rocketGeo, rocketMat); m.position.copy(muzzle); m.lookAt(muzzle.clone().add(d)); m.scale.setScalar(1.6); scene.add(m);
   rockets.push({p: muzzle.clone(), d, m, life: 3, speed: 75});
-  burst(muzzle, 'smoke', 8, 2); SFX.boom(.45); panicNear(c.x, c.z, 50);
+  burst(muzzle, 'smoke', 8, 2); SFX.boom(.45); panicNear(c.x, c.z, 50); todo('tank');
 }
 function heliFloor(x, z){
   let f = groundY(x, z);
@@ -2443,7 +2329,7 @@ if (DEALER_LOT) {
 function buyVehicle(s){
   if (!owned.has(s.type)) {
     if (money < s.price) { SFX.empty(); showBanner('NOT ENOUGH CASH', `The ${s.name} costs $${s.price.toLocaleString()}`, 2, true); return; }
-    money -= s.price; owned.add(s.type); save();
+    money -= s.price; owned.add(s.type); save(); todo('buy');
     showBanner('SOLD!', `The ${s.name} is yours to keep`, 2.5); SFX.pass();
   }
   const old = ownedCars[s.type]; if (old && cars.includes(old) && old !== P.inCar) removeCar(old);
@@ -2476,7 +2362,7 @@ function robAtm(a){
   const cash = 60 + Math.floor(Math.random() * 141);
   money += cash; a.cd = 120; a.screen.material = atmOffMat;
   burst(new THREE.Vector3(a.x, 1.3, a.z - 1), 'cash', 14, 4); SFX.coin();
-  showBanner('ATM CRACKED', '+$' + cash, 2); crime(2);
+  showBanner('ATM CRACKED', '+$' + cash, 2); crime(2); todo('atm');
 }
 
 // ---------- jewellery store ----------
@@ -2491,7 +2377,7 @@ function smashCase(cs){
   money += 150; js.robbed = true; js.restockT = 0;
   noise(.4, 5000, 'highpass', .6); SFX.coin(); burst(new THREE.Vector3(cs.x, 1.2, cs.z), 'spark', 12, 4);
   P.yaw = Math.atan2(cs.x - P.x, cs.z - P.z); P.m.punchT = .3;
-  alarmJewel(js); crime(heat < 3 ? 3 - heat : 1);
+  alarmJewel(js); crime(heat < 3 ? 3 - heat : 1); todo('jewel');
 }
 function restockJewel(js){
   js.robbed = false; js.restockT = 0; js.alarm = false;
@@ -2531,7 +2417,7 @@ const HIRE_SPOT = lotCorner(4, 4, 1, 0);
 function hireGuard(){
   if (crew.filter(g => !g.dead).length >= 3) { SFX.empty(); return; }
   if (money < 250) { SFX.empty(); showBanner('NOT ENOUGH CASH', 'A bodyguard costs $250', 2, true); return; }
-  money -= 250; SFX.pickup();
+  money -= 250; SFX.pickup(); todo('guard');
   const m = buildDoge('ski'); attachGun(m, 'ak'); scene.add(m.g);
   const p = spotAround(P.x, P.z, 1.5, 3);
   crew.push({x: p.x, z: p.z, yaw: P.yaw, m, hp: 12, cd: 0, scan: 0, foe: null, speed: 0, hidden: false, dead: false, deadT: 0, stuck: 0, sd: 1, t: 0});
@@ -2654,7 +2540,7 @@ $('sSpin').addEventListener('click', () => {
     if (res[0].k === res[1].k && res[1].k === res[2].k) win = cBet * SLOT_PAY[res[0].k];
     else if (res[0].k === 'CHERRY' && res[1].k === 'CHERRY') win = cBet * 3;
     money += win;
-    if (win) { cMsg(`You won $${win}!`, 'win'); SFX.pass(); } else cMsg('No win this time.', 'lose');
+    if (win) { cMsg(`You won $${win}!`, 'win'); SFX.pass(); todo('slots'); } else cMsg('No win this time.', 'lose');
     cBusy = false; renderCasino();
   }, 1350);
 });
@@ -2678,7 +2564,7 @@ $('rSpin').addEventListener('click', () => {
     const [name, mult, test] = R_BETS[rBet];
     const won = rBet === 'num' ? n === pickN : test(n);
     const win = won ? cBet * mult : 0; money += win;
-    if (win) { cMsg(`${n}! You won $${win - cBet} on ${rBet === 'num' ? 'number ' + pickN : name}.`, 'win'); SFX.pass(); }
+    if (win) { cMsg(`${n}! You won $${win - cBet} on ${rBet === 'num' ? 'number ' + pickN : name}.`, 'win'); SFX.pass(); todo('roulette'); }
     else cMsg(`${n}. Your ${rBet === 'num' ? 'number ' + pickN : name} bet loses.`, 'lose');
     cBusy = false; renderCasino();
   }, 1800);
@@ -2711,7 +2597,7 @@ function bjFinish(){
   else if (d > 21 || p > d) { win = bj.bet * 2; msg = `You win $${bj.bet}!`; kind = 'win'; }
   else if (p === d) { win = bj.bet; msg = 'Push. You get your bet back.'; kind = ''; }
   else msg = 'Dealer wins.';
-  money += win; cMsg(msg, kind); if (kind === 'win') SFX.pass();
+  money += win; cMsg(msg, kind); if (kind === 'win') { SFX.pass(); todo('blackjack'); }
   renderCasino();
 }
 function bjDealerPlay(){ while (handVal(bj.d) < 17) bj.d.push(drawCard()); bjFinish(); }
@@ -2730,6 +2616,44 @@ $('bjDouble').addEventListener('click', () => {
   if (handVal(bj.p) > 21) bjFinish(); else bjDealerPlay();
 });
 
+// ---------- to-do list ----------
+// Every activity in the game. Most tick off through todo(key) where they happen; missions tick off from `done`.
+const TODOS = [
+  ['Get around', [
+    ['drive', 'Steal a car and drive it'], ['beach', 'Hit the beach'], ['buy', 'Buy a vehicle at Doge Motors'],
+    ['heli', 'Fly the helicopter'], ['roof', 'Land the helicopter on a roof and get out'], ['tank', 'Fire the tank cannon'],
+  ]],
+  ['Crime', [
+    ['atm', 'Crack an ATM'], ['jewel', 'Smash a jewellery case'], ['boom', 'Blow up a car'],
+    ['carcop', 'Take out a cop inside a police car'], ['stars5', 'Reach 5 wanted stars'], ['gang', 'Take out a gang member'],
+  ]],
+  ['Fun and money', [
+    ['slots', 'Win on the slots'], ['roulette', 'Win at roulette'], ['blackjack', 'Win a hand of blackjack'],
+    ['club', 'Make it rain at the Kitty Kat Club'], ['guard', 'Hire a bodyguard'], ['golden', 'Earn money during Golden Hour'],
+  ]],
+];
+function todo(k){
+  if (todoDone.has(k)) return;
+  todoDone.add(k); save();
+  const item = TODOS.flatMap(g => g[1]).find(t => t[0] === k);
+  if (item && state === 'play') showBanner('TO-DO DONE', item[1], 2.2);
+}
+function renderTodo(){
+  const groups = [...TODOS, ['Missions', MISSIONS.map(m => ['m:' + m.id, `${m.name}: ${m.blurb}`])]];
+  const isDone = k => k.startsWith('m:') ? done.has(k.slice(2)) : todoDone.has(k);
+  const all = groups.flatMap(g => g[1]);
+  $('todoCount').textContent = `${all.filter(t => isDone(t[0])).length}/${all.length}`;
+  $('todoList').innerHTML = groups.map(([title, items]) => `<section><h3>${title}</h3><ul>${items.map(([k, text]) => `<li class="${isDone(k) ? 'ok' : ''}">${text}</li>`).join('')}</ul></section>`).join('');
+}
+let todoFrom = null;
+function openTodo(){
+  todoFrom = state === 'play' || state === 'paused' ? 'game' : 'menu';
+  if (state === 'play') { state = 'paused'; mouseDown = rightDown = false; touchFire = false; $('touch').hidden = true; }
+  $('pause').hidden = true; $('help').hidden = true; renderTodo(); $('todo').hidden = false;
+  if (document.pointerLockElement) document.exitPointerLock();
+}
+function closeTodo(){ $('todo').hidden = true; if (todoFrom === 'game') resumeGame(); }
+
 // ---------- golden hour ----------
 // Every 30 minutes on the clock (:00 and :30) money pays double for 5 minutes. Casino winnings don't count.
 const GOLD_EVERY = 30 * 60, GOLD_LEN = 5 * 60;
@@ -2740,7 +2664,7 @@ function updateGolden(dt){
   const ph = goldPhase(), on = ph < GOLD_LEN;
   if (on && !wasGold) { showBanner('GOLDEN HOUR!', 'Double money for the next 5 minutes', 3.5); SFX.pass(); }
   wasGold = on;
-  if (on && money > lastMoney) money += money - lastMoney;
+  if (on && money > lastMoney) { money += money - lastMoney; todo('golden'); }
   lastMoney = money;
   const el = $('golden');
   el.classList.toggle('on', on);
