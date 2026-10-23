@@ -395,18 +395,23 @@ function resize(){ renderer.setSize(innerWidth, innerHeight, false); camera.aspe
 addEventListener('resize', resize); resize();
 
 // ---------- textures ----------
+// Every texture is painted at 4x and filtered bilinearly with anisotropy, so it reads as a PS2 painted texture, not pixel art.
+const TEX_SCALE = 4, ANISO = Math.min(4, renderer.capabilities.getMaxAnisotropy());
 function tex(w, h, draw, rx = 1, ry = 1){
-  const c = document.createElement('canvas'); c.width = w; c.height = h;
-  draw(c.getContext('2d'), w, h);
+  const c = document.createElement('canvas'); c.width = w * TEX_SCALE; c.height = h * TEX_SCALE;
+  const g = c.getContext('2d'); g.scale(TEX_SCALE, TEX_SCALE); draw(g, w, h);
   const t = new THREE.CanvasTexture(c);
-  t.magFilter = THREE.NearestFilter; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry);
+  t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter; t.anisotropy = ANISO;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry);
   return t;
 }
+function hexCss(c){ return '#' + c.toString(16).padStart(6, '0'); }
+function shade(c, f){ if (typeof c === 'string') c = parseInt(c.slice(1), 16); const ch = s => clamp(Math.round(((c >> s) & 255) * f), 0, 255); return `rgb(${ch(16)},${ch(8)},${ch(0)})`; }
 function speck(g, w, h, a){
   for (let i = 0; i < w * h / 3; i++) {
     const v = Math.random() < .5 ? 0 : 255;
     g.fillStyle = `rgba(${v},${v},${v},${Math.random() * a})`;
-    g.fillRect(Math.random() * w | 0, Math.random() * h | 0, 1, 1);
+    g.fillRect(Math.random() * w, Math.random() * h, .4, .4); // fine grain: a 4x-scale canvas would turn 1-unit dots into pixel-art blocks
   }
 }
 const N = 14, BLOCK = 40, ROAD = 12, LOT = BLOCK - ROAD, WORLD = N * BLOCK + ROAD, BEACH = 26, XMAX = WORLD + BEACH;
@@ -469,11 +474,17 @@ function signTex(text, bg, fg){ return tex(128, 32, (g) => { g.fillStyle = bg; g
 const shadowT = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); const gr = g.createRadialGradient(32, 32, 4, 32, 32, 32); gr.addColorStop(0, 'rgba(0,0,0,.5)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
 function facadeTex(wall, win, graffiti){
   return tex(32, 32, (g) => {
-    g.fillStyle = wall; g.fillRect(0, 0, 32, 32); speck(g, 32, 32, .1);
-    g.fillStyle = 'rgba(0,0,0,.2)'; g.fillRect(0, 30, 32, 2);
-    g.fillStyle = win; g.fillRect(7, 8, 18, 14);
-    g.fillStyle = 'rgba(255,255,255,.28)'; g.fillRect(7, 8, 18, 3);
-    g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(15, 8, 2, 14); g.fillRect(6, 22, 20, 2);
+    // render courses, grime at the foot of the wall, a recessed window with a lintel, glass that reflects the sky, mullions and a sill
+    g.fillStyle = wall; g.fillRect(0, 0, 32, 32); speck(g, 32, 32, .08);
+    g.strokeStyle = 'rgba(0,0,0,.07)'; g.lineWidth = .4; for (let y = 2; y < 32; y += 2) { g.beginPath(); g.moveTo(0, y); g.lineTo(32, y); g.stroke(); }
+    const gm = g.createLinearGradient(0, 24, 0, 32); gm.addColorStop(0, 'rgba(0,0,0,0)'); gm.addColorStop(1, 'rgba(0,0,0,.3)'); g.fillStyle = gm; g.fillRect(0, 24, 32, 8);
+    g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(6.4, 7.4, 19.4, 15.4);
+    g.fillStyle = '#d9d6cc'; g.fillRect(6, 6.6, 20, 1);
+    const gl = g.createLinearGradient(0, 8, 0, 22); gl.addColorStop(0, '#f4fbff'); gl.addColorStop(.35, win); gl.addColorStop(1, shade(win, .55));
+    g.fillStyle = gl; g.fillRect(7, 8, 18, 14);
+    g.fillStyle = 'rgba(255,255,255,.22)'; g.beginPath(); g.moveTo(7, 8); g.lineTo(25, 8); g.lineTo(7, 20); g.fill();
+    g.fillStyle = '#2a2a2e'; g.fillRect(15.4, 8, 1.2, 14); g.fillRect(7, 14.4, 18, 1.2);
+    g.fillStyle = '#e4e0d4'; g.fillRect(6, 22, 20, 1.2); g.fillStyle = 'rgba(0,0,0,.28)'; g.fillRect(6, 23.2, 20, 1.2);
     if (graffiti) { g.lineWidth = 2; for (let i = 0; i < 2; i++) { g.strokeStyle = pick(['#c64bff', '#ff4fa3', '#49e0ff', '#b7ff3c']); g.beginPath(); g.moveTo(rand(0, 10), rand(23, 30)); g.bezierCurveTo(rand(5, 25), rand(18, 32), rand(5, 25), rand(18, 32), rand(22, 32), rand(23, 30)); g.stroke(); } }
   });
 }
@@ -799,116 +810,128 @@ function buildDogeBlocks(outfit){
   g.scale.setScalar(.82);
   return {g, body, legL, legR, armL, armR, armLen: 1.02};
 }
-// ---------- Doge: PS2-style polygon model ----------
-// Six-to-eight-sided tapered tubes with flat facets, painted textures and per-vertex lighting, like a San Andreas ped.
-// Textures are painted so the light falls down the front of each limb (u = 0 wraps at both edges) and the back stays dark.
-// buildDoge tries this first and falls back to block Doge if anything throws.
-function ptex(w, h, draw){ const t = tex(w, h, draw); t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter; t.repeat.set(1, 1); return t; }
-function facet(geo){ const g = geo.toNonIndexed(); g.computeVertexNormals(); return g; }
-function tube(parent, rt, rb, h, seg, color, x, y, z, map, sx = 1, sz = 1){ const m = new THREE.Mesh(facet(new THREE.CylinderGeometry(rt, rb, h, seg)), lam(color, map)); m.position.set(x, y, z); m.scale.set(sx, 1, sz); parent.add(m); return m; }
-function orb(parent, r, color, x, y, z, sx = 1, sy = 1, sz = 1, map, ws = 8, hs = 6){ const m = new THREE.Mesh(facet(new THREE.SphereGeometry(r, ws, hs)), lam(color, map)); m.position.set(x, y, z); m.scale.set(sx, sy, sz); parent.add(m); return m; }
-function streaks(g, w, h, n, light, dark, a, y0 = 0, y1 = h){ g.globalAlpha = a; for (let i = 0; i < n; i++) { g.fillStyle = Math.random() < .5 ? light : dark; g.fillRect(rand(0, w), rand(y0, y1), 1, rand(3, 9)); } g.globalAlpha = 1; }
-function furTex(base, light, dark){
-  return ptex(64, 64, (g, w, h) => {
-    const gr = g.createLinearGradient(0, 0, w, 0);
-    gr.addColorStop(0, light); gr.addColorStop(.2, base); gr.addColorStop(.5, dark); gr.addColorStop(.8, base); gr.addColorStop(1, light);
-    g.fillStyle = gr; g.fillRect(0, 0, w, h);
-    streaks(g, w, h, 90, light, dark, .35);
-  });
-}
-const dogeFurT = furTex('#e08a3c', '#f5b36a', '#b8651f');
-const dogeArmT = ptex(64, 64, (g, w, h) => { // fur plus a bicep highlight at the front and a shadow line down each side
-  g.drawImage(dogeFurT.image, 0, 0);
-  g.fillStyle = 'rgba(255,230,180,.38)'; for (const x of [4, 60]) { g.beginPath(); g.ellipse(x, 24, 10, 14, 0, 0, TAU); g.fill(); }
-  g.fillStyle = 'rgba(120,60,10,.3)'; for (const x of [20, 44]) { g.beginPath(); g.ellipse(x, 30, 4, 16, 0, 0, TAU); g.fill(); }
-});
-const dogeHeadT = ptex(64, 32, (g, w, h) => { // equirectangular skull: front at x = 16, back at x = 48
-  g.fillStyle = '#e08a3c'; g.fillRect(0, 0, w, h);
-  g.fillStyle = 'rgba(150,70,15,.3)'; g.fillRect(36, 0, 28, h);
-  g.fillStyle = '#f7efe0';
-  g.beginPath(); g.ellipse(16, 22, 11, 7.5, 0, 0, TAU); g.fill();
-  for (const s of [-1, 1]) { g.beginPath(); g.ellipse(16 + s * 5.5, 9.5, 2.6, 2, 0, 0, TAU); g.fill(); }
-  g.fillStyle = '#e08a3c'; g.beginPath(); g.ellipse(16, 15.5, 3.5, 3.5, 0, 0, TAU); g.fill();
-  streaks(g, w, h, 70, '#f5b36a', '#b8651f', .3, 0, 13);
-});
-const tankT = ptex(64, 64, (g, w, h) => {
-  g.fillStyle = '#f3f3ef'; g.fillRect(0, 0, w, h);
-  g.globalAlpha = .5; for (let i = 0; i < 40; i++) { g.fillStyle = Math.random() < .6 ? '#dcdcd6' : '#ffffff'; g.fillRect(rand(0, w), rand(0, h), rand(1, 2), rand(6, 20)); } g.globalAlpha = 1;
-  g.fillStyle = 'rgba(0,0,0,.12)'; g.fillRect(14, 0, 4, h); g.fillRect(46, 0, 4, h);
-  g.fillStyle = '#e08a3c';
-  for (const x of [16, 48]) { g.beginPath(); g.ellipse(x, 0, 9, 18, 0, 0, TAU); g.fill(); }
-  for (const x of [0, 64]) { g.beginPath(); g.ellipse(x, 0, 8, 10, 0, 0, TAU); g.fill(); }
-  g.beginPath(); g.ellipse(32, 0, 6, 6, 0, 0, TAU); g.fill();
-  g.fillStyle = 'rgba(0,0,0,.1)'; for (const x of [0, 64]) { g.beginPath(); g.ellipse(x, 26, 10, 4, 0, 0, TAU); g.fill(); }
-});
-const hibiscusT = ptex(64, 64, (g, w, h) => {
-  g.fillStyle = '#2b66ad'; g.fillRect(0, 0, w, h);
-  for (let i = 0; i < 26; i++) { g.fillStyle = pick(['#1d4a85', '#3d7fc4', '#245a9c', '#4a8fd0']); g.beginPath(); g.ellipse(rand(0, w), rand(0, h), rand(4, 9), rand(3, 6), rand(0, 3), 0, TAU); g.fill(); }
-  for (let i = 0; i < 7; i++) {
-    const x = rand(4, 60), y = rand(10, 60), r = rand(4, 6);
-    g.fillStyle = 'rgba(190,220,240,.85)';
-    for (let p = 0; p < 5; p++) { const a = p / 5 * TAU; g.beginPath(); g.ellipse(x + Math.cos(a) * r * .7, y + Math.sin(a) * r * .7, r * .55, r * .35, a, 0, TAU); g.fill(); }
-    g.fillStyle = '#2b66ad'; g.beginPath(); g.arc(x, y, 1.2, 0, TAU); g.fill();
-  }
-  g.fillStyle = '#1d4a85'; g.fillRect(0, 0, w, 5);
-  g.strokeStyle = '#f4f4f0'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(2, 4); g.lineTo(5, 14); g.moveTo(62, 4); g.lineTo(59, 14); g.stroke();
-});
+// ---------- PS2-style character models ----------
+// Smooth-shaded lathes and tubes (12–16 sides) with 256 px painted textures that carry the shading, like San Andreas peds.
+// Painted textures put the light down the front of each limb (u = 0 wraps at both edges) and keep the back dark.
+// buildDoge tries the polygon build first and falls back to block Doge if anything throws.
+const ptex = (w, h, draw) => { const t = tex(w, h, draw); t.repeat.set(1, 1); return t; };
+function lathe(parent, pts, seg, color, x, y, z, map, sx = 1, sz = 1){ const m = new THREE.Mesh(new THREE.LatheGeometry(pts.map(p => new THREE.Vector2(p[0], p[1])), seg), lam(color, map)); m.position.set(x, y, z); m.scale.set(sx, 1, sz); parent.add(m); return m; }
+function tube(parent, rt, rb, h, seg, color, x, y, z, map, sx = 1, sz = 1){ const m = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), lam(color, map)); m.position.set(x, y, z); m.scale.set(sx, 1, sz); parent.add(m); return m; }
+function orb(parent, r, color, x, y, z, sx = 1, sy = 1, sz = 1, map, ws = 14, hs = 10){ const m = new THREE.Mesh(new THREE.SphereGeometry(r, ws, hs), lam(color, map)); m.position.set(x, y, z); m.scale.set(sx, sy, sz); parent.add(m); return m; }
+function cone(parent, r, h, seg, color, x, y, z, rz = 0){ const m = new THREE.Mesh(new THREE.ConeGeometry(r, h, seg), lam(color)); m.position.set(x, y, z); m.rotation.z = rz; parent.add(m); return m; }
+function hairs(g, w, h, n, light, dark, a, y0 = 0, y1 = h){ g.globalAlpha = a; g.lineWidth = .6; for (let i = 0; i < n; i++) { g.strokeStyle = Math.random() < .5 ? light : dark; const x = rand(0, w), y = rand(y0 - 4, y1); g.beginPath(); g.moveTo(x, y); g.lineTo(x + rand(-1.5, 1.5), y + rand(3, 8)); g.stroke(); } g.globalAlpha = 1; }
+function litBase(g, w, h, base, light, dark){ const gr = g.createLinearGradient(0, 0, w, 0); gr.addColorStop(0, light); gr.addColorStop(.22, base); gr.addColorStop(.5, dark); gr.addColorStop(.78, base); gr.addColorStop(1, light); g.fillStyle = gr; g.fillRect(0, 0, w, h); }
+function furTex(base, light, dark, n = 160){ return ptex(64, 64, (g, w, h) => { litBase(g, w, h, base, light, dark); hairs(g, w, h, n, light, dark, .25); }); }
 function clothTex(base, light, dark, stripe, extra){
   return ptex(64, 64, (g, w, h) => {
-    g.fillStyle = base; g.fillRect(0, 0, w, h);
-    g.globalAlpha = .45; for (let i = 0; i < 40; i++) { g.fillStyle = Math.random() < .5 ? light : dark; g.fillRect(rand(0, w), rand(0, h), rand(1, 3), rand(8, 24)); } g.globalAlpha = 1;
-    g.fillStyle = dark; g.fillRect(15, 0, 2, h); g.fillRect(47, 0, 2, h);
-    if (stripe) { g.fillStyle = stripe; g.fillRect(12, 0, 3, h); g.fillRect(49, 0, 3, h); }
+    litBase(g, w, h, base, light, dark);
+    g.globalAlpha = .35; for (let i = 0; i < 18; i++) { const x = rand(0, w), gr = g.createLinearGradient(x - 3, 0, x + 3, 0); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(.5, Math.random() < .5 ? light : dark); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(x - 3, rand(-10, h / 2), 6, rand(20, 50)); } g.globalAlpha = 1;
+    g.fillStyle = dark; g.fillRect(15.5, 0, 1, h); g.fillRect(47.5, 0, 1, h);
+    if (stripe) { g.fillStyle = stripe; g.fillRect(12.5, 0, 2, h); g.fillRect(49.5, 0, 2, h); g.fillRect(17, 0, 1, h); g.fillRect(46, 0, 1, h); }
     if (extra) extra(g, w, h);
   });
 }
-const hoodieT = clothTex('#1d1e24', '#34363f', '#0c0c10', null, (g, w, h) => {
-  g.strokeStyle = '#0c0c10'; g.lineWidth = 1.5; g.strokeRect(-6, 40, 16, 16); g.strokeRect(54, 40, 16, 16);
-  g.strokeStyle = '#d8d8d8'; g.beginPath(); g.moveTo(3, 2); g.lineTo(5, 18); g.moveTo(61, 2); g.lineTo(59, 18); g.stroke();
+const texCache = {};
+const skinTex = c => texCache['s' + c] || (texCache['s' + c] = furTex(hexCss(c), shade(c, 1.16), shade(c, .74), 40));
+const furOf = c => texCache['f' + c] || (texCache['f' + c] = furTex(hexCss(c), shade(c, 1.22), shade(c, .7)));
+const clothOf = (c, stripe) => texCache['c' + c + (stripe || '')] || (texCache['c' + c + (stripe || '')] = clothTex(hexCss(c), shade(c, 1.22), shade(c, .68), stripe));
+
+// Doge's textures
+const dogeFurT = furTex('#e08a3c', '#f5b36a', '#b8651f');
+const dogeArmT = ptex(64, 64, (g, w, h) => { // fur with the bicep lit at the front and the tricep in shadow
+  litBase(g, w, h, '#e08a3c', '#f5b36a', '#b8651f');
+  for (const x of [0, 64]) { const gr = g.createRadialGradient(x, 22, 1, x, 22, 14); gr.addColorStop(0, 'rgba(255,235,190,.55)'); gr.addColorStop(1, 'rgba(255,235,190,0)'); g.fillStyle = gr; g.fillRect(x - 14, 6, 28, 34); }
+  for (const x of [20, 44]) { const gr = g.createRadialGradient(x, 30, 1, x, 30, 9); gr.addColorStop(0, 'rgba(110,50,10,.45)'); gr.addColorStop(1, 'rgba(110,50,10,0)'); g.fillStyle = gr; g.fillRect(x - 9, 10, 18, 40); }
+  hairs(g, w, h, 120, '#f5b36a', '#b8651f', .22);
 });
-const trackT = clothTex('#b3202a', '#d23a44', '#7e1118', '#f2f2f2');
+const dogeHeadT = ptex(64, 32, (g, w, h) => { // equirectangular skull: front at x = 16, back at x = 48, top at y = 0
+  g.fillStyle = '#e08a3c'; g.fillRect(0, 0, w, h);
+  const gb = g.createLinearGradient(16, 0, 48, 0); gb.addColorStop(0, 'rgba(150,70,15,0)'); gb.addColorStop(1, 'rgba(150,70,15,.4)'); g.fillStyle = gb; g.fillRect(16, 0, 48, h);
+  const gf = g.createLinearGradient(0, 0, 16, 0); gf.addColorStop(0, 'rgba(150,70,15,.4)'); gf.addColorStop(1, 'rgba(150,70,15,0)'); g.fillStyle = gf; g.fillRect(0, 0, 16, h);
+  const cheek = g.createRadialGradient(16, 22, 2, 16, 22, 12); cheek.addColorStop(0, '#f8f0e2'); cheek.addColorStop(.75, '#f8f0e2'); cheek.addColorStop(1, 'rgba(248,240,226,0)'); g.fillStyle = cheek; g.fillRect(2, 10, 28, 22);
+  for (const s of [-1, 1]) { const b = g.createRadialGradient(16 + s * 5.5, 9.5, .5, 16 + s * 5.5, 9.5, 3.2); b.addColorStop(0, '#f8f0e2'); b.addColorStop(.6, '#f8f0e2'); b.addColorStop(1, 'rgba(248,240,226,0)'); g.fillStyle = b; g.fillRect(16 + s * 5.5 - 4, 6, 8, 8); }
+  const bridge = g.createRadialGradient(16, 15, 1, 16, 15, 4.5); bridge.addColorStop(0, '#e08a3c'); bridge.addColorStop(.7, '#e08a3c'); bridge.addColorStop(1, 'rgba(224,138,60,0)'); g.fillStyle = bridge; g.fillRect(11, 10, 10, 10);
+  for (const s of [-1, 1]) { const sh = g.createRadialGradient(16 + s * 6, 14.5, .5, 16 + s * 6, 14.5, 3); sh.addColorStop(0, 'rgba(90,40,10,.35)'); sh.addColorStop(1, 'rgba(90,40,10,0)'); g.fillStyle = sh; g.fillRect(16 + s * 6 - 3, 11, 6, 7); }
+  hairs(g, w, h, 90, '#f5b36a', '#b8651f', .22, 0, 12);
+});
+const tankT = ptex(64, 64, (g, w, h) => {
+  litBase(g, w, h, '#f6f6f2', '#ffffff', '#cfcfc9');
+  g.globalAlpha = .06; g.fillStyle = '#000'; for (let y = 0; y < h; y += 1.5) g.fillRect(0, y, w, .5); g.globalAlpha = 1;
+  g.globalAlpha = .4; for (let i = 0; i < 10; i++) { const x = rand(2, 62), gr = g.createLinearGradient(x - 3, 0, x + 3, 0); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(.5, 'rgba(0,0,0,.25)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(x - 3, rand(0, 20), 6, rand(25, 50)); } g.globalAlpha = 1;
+  for (const x of [0, 64]) { const pec = g.createRadialGradient(x, 28, 2, x, 28, 13); pec.addColorStop(0, 'rgba(0,0,0,.18)'); pec.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = pec; g.fillRect(x - 13, 18, 26, 20); }
+  g.fillStyle = '#e08a3c';
+  for (const x of [16, 48]) { g.beginPath(); g.ellipse(x, -1, 9.5, 19, 0, 0, TAU); g.fill(); }
+  for (const x of [0, 64]) { g.beginPath(); g.ellipse(x, -2, 8.5, 11, 0, 0, TAU); g.fill(); }
+  g.beginPath(); g.ellipse(32, -2, 6.5, 7, 0, 0, TAU); g.fill();
+  g.strokeStyle = '#dedcd4'; g.lineWidth = 1.2; for (const x of [16, 48]) { g.beginPath(); g.ellipse(x, -1, 10.3, 20, 0, 0, TAU); g.stroke(); } for (const x of [0, 64]) { g.beginPath(); g.ellipse(x, -2, 9.3, 12, 0, 0, TAU); g.stroke(); }
+});
+const hibiscusT = ptex(64, 64, (g, w, h) => {
+  g.fillStyle = '#2b66ad'; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 40; i++) { const x = rand(0, w), y = rand(0, h), r = rand(4, 11), gr = g.createRadialGradient(x, y, 0, x, y, r); const c = pick(['29,74,133', '61,127,196', '36,90,156', '74,143,208']); gr.addColorStop(0, `rgba(${c},.8)`); gr.addColorStop(1, `rgba(${c},0)`); g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2); }
+  for (let i = 0; i < 9; i++) {
+    const x = rand(3, 61), y = rand(9, 61), r = rand(4.5, 6.5), a0 = rand(0, TAU);
+    for (let p = 0; p < 5; p++) {
+      const a = a0 + p / 5 * TAU, px = x + Math.cos(a) * r * .65, py = y + Math.sin(a) * r * .65;
+      const pg = g.createRadialGradient(px, py, 0, px, py, r * .6); pg.addColorStop(0, 'rgba(235,245,252,.95)'); pg.addColorStop(.7, 'rgba(190,220,240,.9)'); pg.addColorStop(1, 'rgba(150,195,230,.6)');
+      g.fillStyle = pg; g.beginPath(); g.ellipse(px, py, r * .62, r * .4, a, 0, TAU); g.fill();
+      g.strokeStyle = 'rgba(20,60,120,.35)'; g.lineWidth = .4; g.stroke();
+    }
+    g.fillStyle = '#1d4a85'; g.beginPath(); g.arc(x, y, 1.3, 0, TAU); g.fill();
+    g.strokeStyle = 'rgba(40,110,70,.5)'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(x + r, y + r * .3); g.quadraticCurveTo(x + r * 1.8, y - r * .4, x + r * 2.4, y + r * .2); g.stroke();
+  }
+  const sd = g.createLinearGradient(0, 0, w, 0); sd.addColorStop(0, 'rgba(255,255,255,.14)'); sd.addColorStop(.25, 'rgba(0,0,0,0)'); sd.addColorStop(.5, 'rgba(0,0,0,.3)'); sd.addColorStop(.75, 'rgba(0,0,0,0)'); sd.addColorStop(1, 'rgba(255,255,255,.14)'); g.fillStyle = sd; g.fillRect(0, 0, w, h);
+  g.fillStyle = '#1d4a85'; g.fillRect(0, 0, w, 5); g.fillStyle = 'rgba(255,255,255,.12)'; g.fillRect(0, 1, w, 1);
+  g.strokeStyle = '#f4f4f0'; g.lineWidth = 1.4; g.beginPath(); g.moveTo(2, 4); g.lineTo(5, 15); g.moveTo(62, 4); g.lineTo(59, 15); g.stroke();
+});
+const hoodieT = clothTex('#1d1e24', '#3a3c46', '#08080b', null, (g, w, h) => {
+  g.strokeStyle = '#0a0a0d'; g.lineWidth = 1.2; g.strokeRect(-6, 40, 16, 16); g.strokeRect(54, 40, 16, 16);
+  g.strokeStyle = '#2d2f38'; g.lineWidth = 1; g.beginPath(); g.moveTo(0, 0); g.lineTo(0, 40); g.moveTo(64, 0); g.lineTo(64, 40); g.stroke();
+  g.strokeStyle = '#d8d8d8'; g.lineWidth = .9; g.beginPath(); g.moveTo(3, 2); g.lineTo(5, 18); g.moveTo(61, 2); g.lineTo(59, 18); g.stroke();
+});
+const trackT = clothTex('#b3202a', '#d8464f', '#6e0d14', '#f2f2f2');
+
 function buildDogePoly(outfit){
   const {g, body} = rig(), OR = 0xe08a3c, WH = 0xf6ecdc, DK = 0x111111, W = 0xffffff;
   const beach = outfit === 'beach', ski = outfit === 'ski', drip = outfit === 'drip';
   const topT = beach ? tankT : ski ? hoodieT : trackT, legT = beach ? hibiscusT : ski ? camoT : trackT, sleeveT = beach ? dogeArmT : topT;
-  tube(body, .36, .40, .3, 8, W, 0, 1.08, 0, legT, 1.2, .78);
-  tube(body, .44, .35, .72, 8, W, 0, 1.52, 0, topT, 1.18, .72);
+  lathe(body, [[.34, -.16], [.40, -.06], [.40, .08], [.37, .17]], 16, W, 0, 1.08, 0, legT, 1.2, .78);
+  lathe(body, [[.33, -.37], [.34, -.2], [.41, -.02], [.45, .18], [.42, .3], [.3, .37]], 16, W, 0, 1.52, 0, topT, 1.2, .72);
   if (ski) orb(body, .3, W, 0, 1.9, -.12, 1.4, .5, 1, hoodieT);
-  tube(body, .13, .16, .26, 6, W, 0, 1.98, 0, ski ? hoodieT : dogeFurT);
+  tube(body, .14, .17, .26, 12, W, 0, 1.98, 0, ski ? hoodieT : dogeFurT);
   const legL = pivot(body, -.2, 1.0, 0), legR = pivot(body, .2, 1.0, 0), kneeL = pivot(legL, 0, -.48, 0), kneeR = pivot(legR, 0, -.48, 0);
   for (const [L, K] of [[legL, kneeL], [legR, kneeR]]) {
-    tube(L, .2, .21, .5, 7, W, 0, -.24, 0, legT, 1.05, .95);
+    lathe(L, [[.19, -.5], [.21, -.3], [.21, -.1], [.2, .02]], 12, W, 0, 0, 0, legT, 1.05, .95);
     if (beach) {
-      tube(K, .15, .1, .42, 6, W, 0, -.2, 0, dogeFurT);
-      part(K, .2, .07, .32, WH, 0, -.41, .06);
+      lathe(K, [[.09, -.42], [.12, -.3], [.16, -.14], [.15, 0]], 12, W, 0, 0, 0, dogeFurT);
+      orb(K, .1, WH, 0, -.41, .07, 1, .6, 1.7);
       part(K, .26, .04, .44, 0x6b4323, 0, -.465, .07);
       part(K, .02, .04, .14, 0x2a1a10, 0, -.43, .14);
     } else {
-      tube(K, .16, .13, .44, 6, W, 0, -.2, 0, legT);
-      part(K, .22, .1, .34, drip ? 0xf4f4f4 : 0x1a1a1e, 0, -.42, .06);
-      part(K, .24, .04, .38, drip ? 0xe8e8e8 : 0x3a3a40, 0, -.475, .07);
+      lathe(K, [[.11, -.42], [.13, -.3], [.16, -.14], [.16, 0]], 12, W, 0, 0, 0, legT);
+      orb(K, .11, drip ? 0xf4f4f4 : 0x1a1a1e, 0, -.42, .07, 1, .55, 1.7);
+      part(K, .24, .04, .4, drip ? 0xe8e8e8 : 0x3a3a40, 0, -.475, .07);
     }
   }
   const armL = pivot(body, -.56, 1.84, 0), armR = pivot(body, .56, 1.84, 0), elbowL = pivot(armL, 0, -.48, 0), elbowR = pivot(armR, 0, -.48, 0);
   for (const [A, E] of [[armL, elbowL], [armR, elbowR]]) {
-    orb(A, .17, W, 0, -.02, 0, 1.1, .9, 1, sleeveT);
-    tube(A, .15, .13, .48, 6, W, 0, -.25, 0, sleeveT);
-    tube(E, .13, .09, .42, 6, W, 0, -.2, 0, beach ? dogeFurT : sleeveT);
-    orb(E, .12, beach ? WH : OR, 0, -.44, 0, 1, 1.05, 1);
+    lathe(A, [[.12, -.5], [.14, -.34], [.17, -.18], [.18, -.04], [.15, .1]], 12, W, 0, 0, 0, sleeveT);
+    lathe(E, [[.085, -.42], [.11, -.3], [.14, -.14], [.125, 0]], 12, W, 0, 0, 0, beach ? dogeFurT : sleeveT);
+    orb(E, .12, beach ? WH : OR, 0, -.44, 0, 1, 1.05, 1, null, 10, 8);
   }
   const handR = pivot(elbowR, 0, -.47, 0);
-  const head = pivot(body, 0, 2.38, 0); head.scale.setScalar(1.14); // big Shiba head, like the reference
-  orb(head, .36, W, 0, 0, 0, 1, .92, 1.02, dogeHeadT, 10, 7);
-  const snout = new THREE.Mesh(facet(new THREE.CylinderGeometry(.15, .22, .34, 7).rotateX(Math.PI / 2).scale(1.15, .8, 1)), lam(ski ? 0x141418 : WH)); snout.position.set(0, -.1, .4); head.add(snout);
-  orb(head, .065, DK, 0, -.045, .59, 1.2, .8, .9, null, 6, 4);
-  part(head, .16, .02, .03, 0x3a2216, 0, -.2, .54);
+  const head = pivot(body, 0, 2.38, 0); head.scale.setScalar(1.14);
+  orb(head, .36, W, 0, 0, 0, 1, .92, 1.02, dogeHeadT, 16, 12);
+  const sg = new THREE.LatheGeometry([[.22, 0], [.22, .1], [.19, .22], [.14, .32], [0, .36]].map(p => new THREE.Vector2(p[0], p[1])), 12).scale(1.15, 1, .8).rotateX(Math.PI / 2);
+  const snout = new THREE.Mesh(sg, lam(ski ? 0x141418 : WH)); snout.position.set(0, -.1, .24); head.add(snout);
+  orb(head, .065, DK, 0, -.03, .59, 1.2, .8, .9, null, 10, 8);
+  part(head, .14, .02, .05, 0x3a2216, 0, -.215, .5);
   for (const s of [-1, 1]) {
-    orb(head, .055, 0x2a1608, s * .15, .05, .31, 1, 1, .6, null, 6, 4);
-    const ear = new THREE.Mesh(facet(new THREE.ConeGeometry(.15, .34, 4)), lam(OR)); ear.position.set(s * .23, .4, -.02); ear.rotation.y = Math.PI / 4; ear.rotation.z = -s * .22; head.add(ear);
-    const inner = new THREE.Mesh(facet(new THREE.ConeGeometry(.08, .2, 4)), lam(WH)); inner.position.set(s * .22, .38, .06); inner.rotation.y = Math.PI / 4; inner.rotation.z = -s * .22; head.add(inner);
+    orb(head, .06, 0x2a1608, s * .15, .06, .31, 1, 1, .5, null, 10, 8);
+    cone(head, .15, .34, 8, OR, s * .23, .4, -.02, -s * .22);
+    cone(head, .08, .2, 8, WH, s * .22, .38, .06, -s * .22);
   }
   if (ski) {
-    orb(head, .385, 0x141418, 0, 0, -.01, 1, .94, 1.02, null, 10, 7);
+    orb(head, .385, 0x141418, 0, 0, -.01, 1, .94, 1.02, null, 16, 12);
     part(head, .5, .14, .03, OR, 0, .05, .385);
     for (const s of [-1, 1]) part(head, .1, .06, .02, DK, s * .15, .05, .405);
     part(head, .18, .07, .02, 0xd06a4a, 0, -.2, .565);
@@ -922,32 +945,39 @@ const SKIN = [0xe8c4a2, 0xc68b5e, 0x8d5a3b, 0xf1d3b8, 0x6b4430];
 const SHIRT = [0xd64545, 0xe8e8e8, 0x3d7dd6, 0xf0b429, 0x2fa36b, 0x7a4fd1, 0x222222, 0xe67e22, 0x9fd3e8];
 const PANTS = [0x2b3445, 0x5c4a36, 0x1e1e22, 0x6d7a8a, 0x3a5a3a];
 const FUR = [0x8a8a8a, 0x2a2a2e, 0xd98b3a, 0xe8e4dc, 0x6b5440];
+// People and Alley Cats: the same smooth build with painted skin, fur and cloth. Same rig contract as before.
 function buildHuman(o){
-  const {g, body} = rig();
+  const {g, body} = rig(), W = 0xffffff, S = o.cat ? furOf(o.skin) : skinTex(o.skin), SH = clothOf(o.shirt), PA = clothOf(o.pants);
   const legL = pivot(body, -.17, .95, 0), legR = pivot(body, .17, .95, 0);
-  for (const L of [legL, legR]) { part(L, .26, .88, .28, o.pants, 0, -.44, 0); part(L, .28, .12, .4, o.shoes, 0, -.9, .06); }
-  part(body, .66, .72, .36, o.shirt, 0, 1.3, 0);
+  for (const L of [legL, legR]) { lathe(L, [[.11, -.9], [.13, -.6], [.14, -.3], [.13, .02]], 10, W, 0, 0, 0, PA); part(L, .26, .12, .4, o.shoes, 0, -.9, .06); }
+  lathe(body, [[.27, -.36], [.29, -.15], [.33, .1], [.31, .3], [.17, .37]], 14, W, 0, 1.3, 0, SH, 1.15, .62);
+  tube(body, .09, .11, .16, 10, W, 0, 1.72, 0, S);
   const armL = pivot(body, -.43, 1.6, 0), armR = pivot(body, .43, 1.6, 0);
-  for (const A of [armL, armR]) { part(A, .2, .6, .22, o.shirt, 0, -.3, 0); part(A, .18, .14, .18, o.skin, 0, -.66, 0); }
+  for (const A of [armL, armR]) {
+    lathe(A, [[.085, -.32], [.1, -.15], [.12, .02], [.1, .1]], 10, W, 0, 0, 0, SH);
+    lathe(A, [[.065, -.62], [.08, -.5], [.095, -.34]], 10, W, 0, 0, 0, S);
+    orb(A, .075, o.skin, 0, -.66, 0, 1, 1, 1, null, 10, 8);
+  }
   const head = pivot(body, 0, 1.92, 0);
   if (o.cat) {
-    part(head, .5, .44, .46, o.skin, 0, 0, 0);
-    part(head, .26, .14, .12, 0xf4efe6, 0, -.12, .24);
-    part(head, .08, .05, .03, 0xe58a9a, 0, -.06, .305);
+    orb(head, .24, W, 0, 0, 0, 1.05, .95, 1, S, 14, 10);
+    orb(head, .12, 0xf4efe6, 0, -.1, .17, 1.1, .7, 1, null, 10, 8);
+    orb(head, .035, 0xe58a9a, 0, -.05, .28, 1.2, .8, 1, null, 8, 6);
     for (const s of [-1, 1]) {
-      part(head, .1, .08, .02, 0x7bd14b, s * .12, .05, .235);
-      part(head, .03, .07, .01, 0x111111, s * .12, .05, .247);
-      const ear = new THREE.Mesh(new THREE.ConeGeometry(.12, .26, 4), lam(o.skin)); ear.position.set(s * .16, .32, 0); ear.rotation.y = Math.PI / 4; head.add(ear);
+      orb(head, .045, 0x7bd14b, s * .11, .05, .2, 1, 1, .5, null, 8, 6);
+      part(head, .025, .06, .01, 0x111111, s * .11, .05, .235);
+      cone(head, .11, .26, 8, o.skin, s * .16, .3, 0, -s * .2);
       part(head, .3, .012, .012, 0xffffff, s * .24, -.1, .26);
     }
-    part(head, .53, .1, .49, o.shirt, 0, .15, 0);
-    const tail = pivot(body, 0, .95, -.18); tail.rotation.x = -.7; part(tail, .08, .08, .7, o.skin, 0, 0, -.35);
+    orb(head, .25, W, 0, .06, 0, 1.06, .7, 1.02, SH, 14, 8);
+    const tail = pivot(body, 0, .95, -.18); tail.rotation.x = -.7; tube(tail, .03, .045, .7, 8, W, 0, 0, -.35, S).rotation.x = Math.PI / 2;
   } else {
-    part(head, .42, .44, .42, o.skin, 0, 0, 0);
-    part(head, .07, .06, .02, 0x111111, -.1, .03, .215); part(head, .07, .06, .02, 0x111111, .1, .03, .215);
-    if (o.cap) { part(head, .46, .14, .46, o.cap, 0, .26, 0); part(head, .46, .04, .2, o.cap, 0, .2, .3); part(head, .1, .08, .02, 0xf6c445, 0, .28, .235); }
-    else part(head, .45, .12, .45, o.hair, 0, .24, -.01);
-    if (o.bandana) { part(head, .47, .12, .47, o.bandana, 0, .19, 0); part(head, .12, .14, .16, o.bandana, 0, .17, -.28); }
+    orb(head, .22, W, 0, 0, 0, 1, 1.06, 1, S, 14, 10);
+    for (const s of [-1, 1]) orb(head, .03, 0x111111, s * .09, .03, .2, 1, 1.2, .5, null, 8, 6);
+    part(head, .1, .02, .02, 0x6b3a2a, 0, -.08, .215);
+    if (o.cap) { tube(head, .235, .235, .14, 12, o.cap, 0, .2, 0); orb(head, .23, o.cap, 0, .2, 0, 1, .5, 1, null, 12, 6); part(head, .4, .035, .2, o.cap, 0, .16, .28); part(head, .1, .08, .02, 0xf6c445, 0, .22, .238); }
+    else { const hair = new THREE.Mesh(new THREE.SphereGeometry(.235, 14, 8, 0, TAU, 0, Math.PI * .5), lam(o.hair)); hair.position.set(0, .02, -.01); hair.scale.set(1, 1.1, 1); head.add(hair); }
+    if (o.bandana) { tube(head, .24, .24, .1, 12, o.bandana, 0, .17, 0); part(head, .12, .14, .16, o.bandana, 0, .15, -.26); }
   }
   return {g, body, legL, legR, armL, armR, armLen: .72};
 }
@@ -956,41 +986,39 @@ const HAIR = [0x2a1a10, 0xe8c56a, 0xd84a8a, 0x111111, 0x8a4a22, 0xc8c8c8];
 const BIKINI = [0xff3fa4, 0x29d3ff, 0xe02a3a, 0xffd23a, 0x7cdc2a, 0xffffff, 0x9b4dff, 0xff7a00];
 function buildWoman(o){
   const g = new THREE.Group(), body = new THREE.Group(); g.add(body); blob(g, 1.2);
-  const S = o.skin, B = o.bik;
+  const W = 0xffffff, S = o.cat ? furOf(o.skin) : skinTex(o.skin), B = o.bik;
   const legL = pivot(body, -.13, .95, 0), legR = pivot(body, .13, .95, 0);
   for (const L of [legL, legR]) {
-    part(L, .19, .88, .21, S, 0, -.44, 0);
+    lathe(L, [[.07, -.9], [.09, -.6], [.11, -.3], [.1, .02]], 10, W, 0, 0, 0, S);
     if (o.cat) { part(L, .17, .1, .28, 0x111111, 0, -.92, .04); part(L, .05, .16, .05, 0x111111, 0, -.94, -.08); }
-    else { part(L, .17, .07, .28, S, 0, -.92, .04); part(L, .19, .03, .3, B, 0, -.97, .04); }
+    else { orb(L, .08, o.skin, 0, -.92, .06, 1, .5, 1.6, null, 8, 6); part(L, .19, .03, .3, B, 0, -.97, .04); }
   }
-  part(body, .48, .24, .3, S, 0, 1.02, 0);
-  part(body, .5, .14, .32, B, 0, .99, 0);
-  part(body, .36, .3, .24, S, 0, 1.28, 0);
-  part(body, .46, .3, .28, S, 0, 1.55, 0);
-  for (const s of [-1, 1]) part(body, .2, .15, .08, B, s * .11, 1.55, .15);
-  part(body, .48, .04, .3, B, 0, 1.6, 0);
+  lathe(body, [[.24, -.3], [.25, -.12], [.19, .06], [.23, .24], [.22, .36], [.12, .42]], 14, W, 0, 1.3, 0, S, 1.05, .72);
+  tube(body, .25, .26, .12, 14, B, 0, 1.0, 0, null, 1.05, .72);
+  for (const s of [-1, 1]) orb(body, .1, B, s * .11, 1.55, .13, 1, 1, .8, null, 10, 8);
+  tube(body, .235, .235, .04, 14, B, 0, 1.6, 0, null, 1.05, .72);
   const armL = pivot(body, -.29, 1.66, 0), armR = pivot(body, .29, 1.66, 0);
-  for (const A of [armL, armR]) part(A, .13, .62, .15, S, 0, -.31, 0);
+  for (const A of [armL, armR]) { lathe(A, [[.045, -.62], [.06, -.4], [.075, -.15], [.07, .04]], 10, W, 0, 0, 0, S); orb(A, .055, o.skin, 0, -.64, 0, 1, 1, 1, null, 8, 6); }
   const head = pivot(body, 0, 1.95, 0);
   if (o.cat) {
-    part(head, .46, .42, .42, S, 0, 0, 0);
-    part(head, .24, .13, .1, 0xf4efe6, 0, -.12, .22);
-    part(head, .07, .05, .03, 0xe58a9a, 0, -.06, .275);
+    orb(head, .22, W, 0, 0, 0, 1.05, .95, 1, S, 14, 10);
+    orb(head, .11, 0xf4efe6, 0, -.1, .15, 1.1, .7, 1, null, 10, 8);
+    orb(head, .03, 0xe58a9a, 0, -.05, .26, 1.2, .8, 1, null, 8, 6);
     part(head, .5, .55, .14, o.hair, 0, -.12, -.22);
     for (const s of [-1, 1]) {
-      part(head, .1, .08, .02, pick([0x4fd1ff, 0x7bd14b]), s * .11, .05, .215);
-      part(head, .03, .07, .01, 0x111111, s * .11, .05, .227);
-      part(head, .13, .02, .02, 0x111111, s * .11, .1, .222);
-      const ear = new THREE.Mesh(new THREE.ConeGeometry(.11, .24, 4), lam(S)); ear.position.set(s * .15, .3, 0); ear.rotation.y = Math.PI / 4; head.add(ear);
+      orb(head, .04, pick([0x4fd1ff, 0x7bd14b]), s * .1, .05, .19, 1, 1, .5, null, 8, 6);
+      part(head, .02, .06, .01, 0x111111, s * .1, .05, .215);
+      part(head, .12, .015, .02, 0x111111, s * .1, .1, .21);
+      cone(head, .1, .24, 8, o.skin, s * .15, .29, 0, -s * .2);
     }
-    const tail = pivot(body, 0, .98, -.15); tail.rotation.x = -.9; part(tail, .07, .07, .7, S, 0, 0, -.35);
+    const tail = pivot(body, 0, .98, -.15); tail.rotation.x = -.9; tube(tail, .03, .04, .7, 8, W, 0, 0, -.35, S).rotation.x = Math.PI / 2;
   } else {
-    part(head, .4, .44, .4, S, 0, 0, 0);
-    part(head, .44, .14, .44, o.hair, 0, .24, -.01);
-    part(head, .44, .62, .12, o.hair, 0, -.12, -.22);
-    for (const s of [-1, 1]) { part(head, .07, .06, .02, 0x1a1a1a, s * .09, .04, .205); part(head, .1, .02, .02, 0x111111, s * .09, .085, .205); }
-    part(head, .12, .04, .02, 0xc2185b, 0, -.12, .205);
-    if (o.shades) part(head, .36, .08, .03, 0x111111, 0, .04, .215);
+    orb(head, .2, W, 0, 0, 0, 1, 1.08, 1, S, 14, 10);
+    const hair = new THREE.Mesh(new THREE.SphereGeometry(.22, 14, 8, 0, TAU, 0, Math.PI * .55), lam(o.hair)); hair.position.set(0, .03, -.01); hair.scale.set(1, 1.1, 1); head.add(hair);
+    part(head, .42, .62, .12, o.hair, 0, -.12, -.2);
+    for (const s of [-1, 1]) { orb(head, .03, 0x1a1a1a, s * .08, .03, .185, 1, 1.2, .5, null, 8, 6); part(head, .1, .015, .02, 0x111111, s * .08, .085, .2); }
+    part(head, .1, .035, .02, 0xc2185b, 0, -.11, .2);
+    if (o.shades) part(head, .34, .08, .03, 0x111111, 0, .04, .21);
   }
   return {g, body, legL, legR, armL, armR, armLen: .62};
 }
