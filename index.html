@@ -71,10 +71,15 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-o
 #hp{background:linear-gradient(#e0475a,var(--blood))}
 #ar{background:linear-gradient(#dfe8f0,var(--armour))}
 .money{font:24px var(--display);color:var(--cash);text-shadow:2px 2px 0 #000,-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000;font-variant-numeric:tabular-nums;white-space:nowrap}
-.stars{font-size:26px;letter-spacing:2px;color:rgba(255,255,255,.18);text-shadow:2px 2px 0 #000}
-.stars .on{color:var(--gold)}
+/* San Andreas wanted stars: hollow dark outlines, gold bevelled when lit */
+.stars{font-size:28px;letter-spacing:1px;color:transparent;-webkit-text-stroke:1.2px rgba(0,0,0,.75);text-shadow:2px 2px 0 rgba(0,0,0,.35)}
+.stars .on{background:linear-gradient(#fff6c2,#f3bd43 55%,#d8961c);-webkit-background-clip:text;background-clip:text;-webkit-text-stroke:1.2px #6b4a06}
 .stars.flash .on{animation:blink .25s steps(2) infinite}
 @keyframes blink{50%{color:#fff}}
+.golden{font:600 12px var(--body);color:rgba(255,255,255,.75);text-shadow:1px 1px 0 #000;white-space:nowrap}
+.golden.on{font:14px var(--display);color:var(--gold);text-shadow:2px 2px 0 #000,0 0 10px rgba(246,196,69,.8);animation:glow 1.2s ease-in-out infinite alternate}
+@keyframes glow{to{text-shadow:2px 2px 0 #000,0 0 18px rgba(255,214,90,1)}}
+@media (prefers-reduced-motion:reduce){.golden.on{animation:none}}
 #radar{position:absolute;left:max(16px,env(safe-area-inset-left,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));width:160px;height:160px;border-radius:50%;border:4px solid #000;box-shadow:0 0 0 2px rgba(255,255,255,.25)}
 #cross{position:absolute;left:50%;top:50%;width:22px;height:22px;transform:translate(-50%,-50%);border:2px solid rgba(255,255,255,.9);border-radius:50%;box-shadow:0 0 0 1px #000}
 #cross::after{content:"";position:absolute;left:50%;top:50%;width:4px;height:4px;margin:-2px;background:var(--blood);border-radius:50%}
@@ -121,6 +126,8 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-o
 .cwallet b{font:20px var(--display);font-weight:400;color:var(--cash)}
 .cbets{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
 .cbets button,.rbets button,.bjbtns button,.leave{font:600 14px var(--body);padding:8px 12px;border-radius:8px;border:2px solid var(--line);background:#1a1d27;color:var(--fg);letter-spacing:0;text-transform:none}
+.cbetin{display:flex;align-items:center;gap:4px;letter-spacing:0;text-transform:none;font-size:13px}
+.cbetin input{width:96px;font:600 15px var(--body);background:#1a1d27;color:var(--fg);border:2px solid var(--line);border-radius:8px;padding:6px 8px}
 .cbets button[aria-pressed="true"],.rbets button[aria-pressed="true"]{border-color:var(--gold);background:#2a2614}
 .game{display:flex;flex-direction:column;gap:12px;align-items:center}
 .reels{display:flex;gap:10px}
@@ -188,6 +195,7 @@ body.touch .tr{transform:scale(.78);transform-origin:top right}
       <div class="bar"><i id="hp" style="width:100%"></i></div>
       <div class="money" id="money">$0</div>
       <div class="stars" id="stars"><span>★</span><span>★</span><span>★</span><span>★</span><span>★</span></div>
+      <div class="golden" id="golden"></div>
     </div>
   </div>
   <canvas id="radar" width="160" height="160"></canvas>
@@ -269,6 +277,9 @@ body.touch .tr{transform:scale(.78);transform-origin:top right}
           <li><kbd>Helicopter</kbd></li><li>W/S fly, A/D turn, Space up, Shift down. Land before getting out</li>
           <li><kbd>Tank</kbd></li><li>Mouse aims the turret, click fires the cannon</li>
           <li><kbd>Hold E</kbd></li><li>Crack an ATM (3 seconds, gives you 1 star)</li>
+          <li><kbd>Golden hour</kbd></li><li>Every 30 minutes (on the hour and half hour), everything you earn pays double for 5 minutes</li>
+          <li><kbd>Roofs</kbd></li><li>Land the helicopter on a roof and get out to walk around. Big falls hurt</li>
+          <li><kbd>Police cars</kbd></li><li>Shoot the cops inside to stop the chase</li>
           <li><kbd>V</kbd></li><li>Doge Motors: buy super cars, a bulletproof car, a tank and a helicopter</li>
           <li><kbd>♣</kbd></li><li>Lucky Doge Casino: slots, roulette and blackjack</li>
           <li><kbd>◆</kbd></li><li>Diamond Dogs jewellery store. Smash the cases, but the guards fight back</li>
@@ -302,7 +313,8 @@ body.touch .tr{transform:scale(.78);transform-origin:top right}
 <div id="casino" class="overlay" hidden>
   <div class="help casino">
     <div class="chead"><h2 id="cTitle">Slots</h2><div class="cwallet">Your cash <b id="cCash">$0</b></div></div>
-    <div class="cbets"><span>Bet</span><button type="button" data-bet="5">$5</button><button type="button" data-bet="10">$10</button><button type="button" data-bet="25">$25</button><button type="button" data-bet="50">$50</button><button type="button" data-bet="100">$100</button></div>
+    <div class="cbets"><span>Bet</span><button type="button" data-bet="5">$5</button><button type="button" data-bet="10">$10</button><button type="button" data-bet="25">$25</button><button type="button" data-bet="50">$50</button><button type="button" data-bet="100">$100</button>
+      <label class="cbetin" for="cBetIn">or any amount $<input id="cBetIn" type="number" min="1" step="1" value="10" inputmode="numeric"></label></div>
     <section id="gSlots" class="game">
       <div class="reels"><div class="reel"></div><div class="reel"></div><div class="reel"></div></div>
       <button class="main" id="sSpin" type="button">Spin</button>
@@ -351,11 +363,12 @@ const canvas = $('c');
 const renderer = new THREE.WebGLRenderer({canvas, antialias: true});
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x8fd0f5);
-scene.fog = new THREE.Fog(0xb8e0f2, 50, 175);
+// San Andreas daylight: a hard blue sky, a warm low sun and a grey haze that swallows the far end of the street
+scene.background = new THREE.Color(0x6fb6ee);
+scene.fog = new THREE.Fog(0xc2d6e2, 45, 165);
 const camera = new THREE.PerspectiveCamera(62, 1, 0.1, 500);
-scene.add(new THREE.HemisphereLight(0xe6f5ff, 0x8a7a5c, 0.8));
-const sun = new THREE.DirectionalLight(0xfff0d0, 0.75); sun.position.set(40, 80, 25); scene.add(sun);
+scene.add(new THREE.HemisphereLight(0xdcefff, 0x9a7f5a, 0.72));
+const sun = new THREE.DirectionalLight(0xffe4b4, 0.9); sun.position.set(60, 55, 30); scene.add(sun);
 function resize(){ renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); }
 addEventListener('resize', resize); resize();
 
@@ -382,14 +395,29 @@ const TURF = {x0: lotX(N - 3) - ROAD / 2, z0: lotX(N - 3) - ROAD / 2, x1: WORLD 
 const isFrogTurf = (i, j) => i <= 2 && j <= 2;
 const TURF_F = {x0: 1, z0: 1, x1: lotX(3) - ROAD / 2, z1: lotX(3) - ROAD / 2};
 const SCRAP = {i: 1, j: N - 2}, CLUB = {i: 3, j: 5};
-const CASINO = {i: 5, j: 6}, DEALER = {i: 6, j: 4}, JEWEL = {i: 7, j: 5};
+const CASINO = {i: 5, j: 6}, DEALER = {i: 6, j: 4};
+const JEWELS = [{i: 7, j: 5, name: 'DIAMOND DOGS'}, {i: 10, j: 3, name: 'ICE BOX JEWELS'}, {i: 3, j: 10, name: 'GOLD BONE'}]
+  .map(s => ({...s, room: null, cases: [], guardSpots: [], alarm: false, alarmT: 0, robbed: false, restockT: 0}));
 const SHOPS = [
   {i: 4, j: 3, label: '24/7 shop', sign: '24/7 SHOP', bg: '#d8262e', uniform: 0xc62828},
   {i: 8, j: 6, label: 'Quik Mart', sign: 'QUIK MART', bg: '#1e6fd8', uniform: 0x1e6fd8},
+  {i: 10, j: 8, label: 'Stop n Shop', sign: 'STOP N SHOP', bg: '#2e7d32', uniform: 0x2e7d32},
+  {i: 6, j: 11, label: 'Dog Mart', sign: 'DOG MART', bg: '#e07a1f', uniform: 0xe07a1f},
 ];
 
-const asphaltT = tex(64, 64, (g, w, h) => { g.fillStyle = '#55565a'; g.fillRect(0, 0, w, h); speck(g, w, h, .22); }, WORLD / 6, WORLD / 6);
-const sidewalkT = tex(32, 32, (g, w, h) => { g.fillStyle = '#aaa79e'; g.fillRect(0, 0, w, h); speck(g, w, h, .15); g.fillStyle = 'rgba(0,0,0,.18)'; g.fillRect(0, 0, w, 1); g.fillRect(0, 0, 1, h); });
+// Road: sun-bleached asphalt with tar patches and cracks. Pavement: four concrete slabs per tile with worn edges.
+const asphaltT = tex(64, 64, (g, w, h) => {
+  g.fillStyle = '#6a6b6e'; g.fillRect(0, 0, w, h); speck(g, w, h, .12);
+  for (let i = 0; i < 4; i++) { g.fillStyle = `rgba(0,0,0,${rand(.04, .09)})`; g.beginPath(); g.ellipse(rand(0, w), rand(0, h), rand(8, 18), rand(5, 12), rand(0, 3), 0, TAU); g.fill(); }
+  g.strokeStyle = 'rgba(0,0,0,.16)'; g.lineWidth = 1;
+  for (let i = 0; i < 3; i++) { g.beginPath(); let x = rand(0, w), y = rand(0, h); g.moveTo(x, y); for (let k = 0; k < 5; k++) { x += rand(-8, 8); y += rand(-8, 8); g.lineTo(x, y); } g.stroke(); }
+}, WORLD / 6, WORLD / 6);
+const sidewalkT = tex(32, 32, (g, w, h) => {
+  g.fillStyle = '#b9b5aa'; g.fillRect(0, 0, w, h); speck(g, w, h, .15);
+  g.fillStyle = 'rgba(0,0,0,.22)'; g.fillRect(0, 0, w, 1); g.fillRect(0, 0, 1, h); g.fillRect(0, 16, w, 1); g.fillRect(16, 0, 1, h);
+  g.fillStyle = 'rgba(255,255,255,.12)'; g.fillRect(1, 1, w, 1); g.fillRect(1, 17, w, 1);
+  for (let i = 0; i < 3; i++) { g.fillStyle = `rgba(0,0,0,${rand(.05, .12)})`; g.beginPath(); g.ellipse(rand(0, w), rand(0, h), rand(3, 7), rand(2, 4), rand(0, 3), 0, TAU); g.fill(); }
+});
 const grassT = tex(32, 32, (g, w, h) => { g.fillStyle = '#5f8a3f'; g.fillRect(0, 0, w, h); speck(g, w, h, .3); });
 const sandT = tex(32, 32, (g, w, h) => { g.fillStyle = '#d6c393'; g.fillRect(0, 0, w, h); speck(g, w, h, .2); }, 90, 90);
 const dirtT = tex(32, 32, (g, w, h) => { g.fillStyle = '#7a6448'; g.fillRect(0, 0, w, h); speck(g, w, h, .35); });
@@ -496,8 +524,8 @@ function makeRoom(o){
   fl.position.set(cx, .22, (o.z0 + o.z1) / 2); scene.add(fl);
   return {x0: o.x0, x1: o.x1, z0: o.z0, z1: o.z1, cx, cz: (o.z0 + o.z1) / 2};
 }
-const CASINO_SPOTS = [], CASINO_DEALER_SPOTS = [], JEWEL_CASES = [], JEWEL_GUARD_SPOTS = [];
-let CASINO_ROOM = null, CASINO_WHEEL = null, JEWEL_ROOM = null, DEALER_LOT = null;
+const CASINO_SPOTS = [], CASINO_DEALER_SPOTS = [];
+let CASINO_ROOM = null, CASINO_WHEEL = null, DEALER_LOT = null;
 const casinoFloorT = tex(32, 32, (g) => { g.fillStyle = '#7a1020'; g.fillRect(0, 0, 32, 32); g.fillStyle = '#a8182c'; for (let y = 0; y < 32; y += 8) for (let x = (y / 8 % 2) * 4; x < 32; x += 8) g.fillRect(x, y, 4, 4); g.fillStyle = '#d4a72c'; g.fillRect(0, 15, 32, 1); speck(g, 32, 32, .08); });
 const showroomT = tex(32, 32, checker('#dfe3e8', '#c9ced6'));
 function buildCasino(x, z){
@@ -527,10 +555,10 @@ function buildDealer(x, z){
   const sign = new THREE.Mesh(new THREE.PlaneGeometry(10, 2.2), lam(0xffffff, signTex('DOGE MOTORS', '#111111', '#f6c445')));
   sign.position.set(x + LOT / 2, 4, z + 5.03); scene.add(sign);
 }
-function buildJewel(x, z){
+function buildJewel(x, z, js){
   const r = makeRoom({x0: x + 3, z0: z + 4, x1: x + LOT - 3, z1: z + LOT - 4, h: 5, door: 'z1', mat: lam(0xffffff, facadeTex('#1c1c24', '#9fd3ff')), ceil: lam(0xf0ece4), floor: tileT});
-  JEWEL_ROOM = r;
-  const sign = new THREE.Mesh(new THREE.PlaneGeometry(9, 2.2), lam(0xffffff, signTex('DIAMOND DOGS', '#0d0d12', '#9fe7ff')));
+  js.room = r;
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(9, 2.2), lam(0xffffff, signTex(js.name, '#0d0d12', '#9fe7ff')));
   sign.position.set(r.cx, 4.1, r.z1 + .03); scene.add(sign);
   const glass = new THREE.MeshPhongMaterial({color: 0xbfe9ff, transparent: true, opacity: .4, shininess: 120});
   const gemA = new THREE.MeshBasicMaterial({color: 0x9fe7ff}), gemB = new THREE.MeshBasicMaterial({color: 0xff5fd8}), gemGeo = new THREE.OctahedronGeometry(.12);
@@ -539,9 +567,9 @@ function buildJewel(x, z){
     buildings.push({x0: cx - .8, x1: cx + .8, z0: cz - .5, z1: cz + .5, h: .9, mat: lam(0x2a2a30), roof: lam(0x111111), lip: false, tile: 2});
     const gl = new THREE.Mesh(new THREE.BoxGeometry(1.5, .4, .9), glass); gl.position.set(cx, 1.1, cz); scene.add(gl);
     const gems = new THREE.Group(); for (let n = 0; n < 4; n++) { const gm = new THREE.Mesh(gemGeo, n % 2 ? gemA : gemB); gm.position.set(cx - .5 + n * .33, 1.02, cz); gems.add(gm); } scene.add(gems);
-    JEWEL_CASES.push({x: cx, z: cz, gl, gems, loot: true});
+    js.cases.push({x: cx, z: cz, gl, gems, loot: true, store: js});
   }
-  JEWEL_GUARD_SPOTS.push({x: r.x0 + 2.2, z: r.z1 - 3}, {x: r.x1 - 2.2, z: r.z1 - 3});
+  js.guardSpots.push({x: r.x0 + 2.2, z: r.z1 - 3}, {x: r.x1 - 2.2, z: r.z1 - 3});
 }
 for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
   const x = lotX(i), z = lotX(j), turf = isTurf(i, j), green = isFrogTurf(i, j);
@@ -584,7 +612,8 @@ for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
   }
   if (i === CASINO.i && j === CASINO.j) { buildCasino(x, z); continue; }
   if (i === DEALER.i && j === DEALER.j) { buildDealer(x, z); continue; }
-  if (i === JEWEL.i && j === JEWEL.j) { buildJewel(x, z); continue; }
+  const js = JEWELS.find(s => s.i === i && s.j === j);
+  if (js) { buildJewel(x, z, js); continue; }
   if (i === SCRAP.i && j === SCRAP.j) {
     const d = new THREE.Mesh(boxUV(new THREE.BoxGeometry(LOT - 2, .06, LOT - 2), LOT - 2, .06, LOT - 2, 3), lam(0xffffff, dirtT));
     d.position.set(x + LOT / 2, .22, z + LOT / 2); scene.add(d);
@@ -635,10 +664,10 @@ scene.add(new THREE.Mesh(merge(sidewalkGeos), lam(0xffffff, sidewalkT)));
 }
 {
   const trunks = [], crowns = [], mtx = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
-  const leafBase = new THREE.PlaneGeometry(1.1, 3.6).translate(0, 1.8, 0);
+  const leafBase = new THREE.PlaneGeometry(1.3, 4.4).translate(0, 2.2, 0);
   for (const [x, z] of palmSpots) {
-    const h = rand(6, 9.5), lean = rand(-.08, .08);
-    const tg = new THREE.CylinderGeometry(.16, .26, h, 6, 1);
+    const h = rand(8, 13), lean = rand(-.1, .1); // tall thin San Andreas palms
+    const tg = new THREE.CylinderGeometry(.14, .3, h, 6, 1);
     const uv = tg.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setY(i, uv.getY(i) * h);
     e.set(lean, 0, lean); q.setFromEuler(e); mtx.compose(new THREE.Vector3(x, h / 2, z), q, new THREE.Vector3(1, 1, 1));
     trunks.push(tg.applyMatrix4(mtx));
@@ -676,7 +705,8 @@ const OUTFITS = [
   {id: 'ski', name: 'Ski Mask', tag: 'Black hoodie, camo cargos, mask on'},
   {id: 'drip', name: 'Drip', tag: 'Red tracksuit, white kicks, shades'},
 ];
-function buildDoge(outfit){
+// Block Doge: the original coloured-box build. Kept as the fallback for buildDoge below.
+function buildDogeBlocks(outfit){
   const {g, body} = rig(), OR = 0xe08a3c, WH = 0xf6ecdc;
   const beach = outfit === 'beach', ski = outfit === 'ski', drip = outfit === 'drip';
   const top = beach ? 0xf2f2ee : ski ? 0x1d1e24 : 0xb3202a;
@@ -747,6 +777,125 @@ function buildDoge(outfit){
   g.scale.setScalar(.82);
   return {g, body, legL, legR, armL, armR, armLen: 1.02};
 }
+// ---------- Doge: PS2-style polygon model ----------
+// Six-to-eight-sided tapered tubes with flat facets, painted textures and per-vertex lighting, like a San Andreas ped.
+// Textures are painted so the light falls down the front of each limb (u = 0 wraps at both edges) and the back stays dark.
+// buildDoge tries this first and falls back to block Doge if anything throws.
+function ptex(w, h, draw){ const t = tex(w, h, draw); t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter; t.repeat.set(1, 1); return t; }
+function facet(geo){ const g = geo.toNonIndexed(); g.computeVertexNormals(); return g; }
+function tube(parent, rt, rb, h, seg, color, x, y, z, map, sx = 1, sz = 1){ const m = new THREE.Mesh(facet(new THREE.CylinderGeometry(rt, rb, h, seg)), lam(color, map)); m.position.set(x, y, z); m.scale.set(sx, 1, sz); parent.add(m); return m; }
+function orb(parent, r, color, x, y, z, sx = 1, sy = 1, sz = 1, map, ws = 8, hs = 6){ const m = new THREE.Mesh(facet(new THREE.SphereGeometry(r, ws, hs)), lam(color, map)); m.position.set(x, y, z); m.scale.set(sx, sy, sz); parent.add(m); return m; }
+function streaks(g, w, h, n, light, dark, a, y0 = 0, y1 = h){ g.globalAlpha = a; for (let i = 0; i < n; i++) { g.fillStyle = Math.random() < .5 ? light : dark; g.fillRect(rand(0, w), rand(y0, y1), 1, rand(3, 9)); } g.globalAlpha = 1; }
+function furTex(base, light, dark){
+  return ptex(64, 64, (g, w, h) => {
+    const gr = g.createLinearGradient(0, 0, w, 0);
+    gr.addColorStop(0, light); gr.addColorStop(.2, base); gr.addColorStop(.5, dark); gr.addColorStop(.8, base); gr.addColorStop(1, light);
+    g.fillStyle = gr; g.fillRect(0, 0, w, h);
+    streaks(g, w, h, 90, light, dark, .35);
+  });
+}
+const dogeFurT = furTex('#e08a3c', '#f5b36a', '#b8651f');
+const dogeArmT = ptex(64, 64, (g, w, h) => { // fur plus a bicep highlight at the front and a shadow line down each side
+  g.drawImage(dogeFurT.image, 0, 0);
+  g.fillStyle = 'rgba(255,230,180,.38)'; for (const x of [4, 60]) { g.beginPath(); g.ellipse(x, 24, 10, 14, 0, 0, TAU); g.fill(); }
+  g.fillStyle = 'rgba(120,60,10,.3)'; for (const x of [20, 44]) { g.beginPath(); g.ellipse(x, 30, 4, 16, 0, 0, TAU); g.fill(); }
+});
+const dogeHeadT = ptex(64, 32, (g, w, h) => { // equirectangular skull: front at x = 16, back at x = 48
+  g.fillStyle = '#e08a3c'; g.fillRect(0, 0, w, h);
+  g.fillStyle = 'rgba(150,70,15,.3)'; g.fillRect(36, 0, 28, h);
+  g.fillStyle = '#f7efe0';
+  g.beginPath(); g.ellipse(16, 22, 11, 7.5, 0, 0, TAU); g.fill();
+  for (const s of [-1, 1]) { g.beginPath(); g.ellipse(16 + s * 5.5, 9.5, 2.6, 2, 0, 0, TAU); g.fill(); }
+  g.fillStyle = '#e08a3c'; g.beginPath(); g.ellipse(16, 15.5, 3.5, 3.5, 0, 0, TAU); g.fill();
+  streaks(g, w, h, 70, '#f5b36a', '#b8651f', .3, 0, 13);
+});
+const tankT = ptex(64, 64, (g, w, h) => {
+  g.fillStyle = '#f3f3ef'; g.fillRect(0, 0, w, h);
+  g.globalAlpha = .5; for (let i = 0; i < 40; i++) { g.fillStyle = Math.random() < .6 ? '#dcdcd6' : '#ffffff'; g.fillRect(rand(0, w), rand(0, h), rand(1, 2), rand(6, 20)); } g.globalAlpha = 1;
+  g.fillStyle = 'rgba(0,0,0,.12)'; g.fillRect(14, 0, 4, h); g.fillRect(46, 0, 4, h);
+  g.fillStyle = '#e08a3c';
+  for (const x of [16, 48]) { g.beginPath(); g.ellipse(x, 0, 9, 18, 0, 0, TAU); g.fill(); }
+  for (const x of [0, 64]) { g.beginPath(); g.ellipse(x, 0, 8, 10, 0, 0, TAU); g.fill(); }
+  g.beginPath(); g.ellipse(32, 0, 6, 6, 0, 0, TAU); g.fill();
+  g.fillStyle = 'rgba(0,0,0,.1)'; for (const x of [0, 64]) { g.beginPath(); g.ellipse(x, 26, 10, 4, 0, 0, TAU); g.fill(); }
+});
+const hibiscusT = ptex(64, 64, (g, w, h) => {
+  g.fillStyle = '#2b66ad'; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 26; i++) { g.fillStyle = pick(['#1d4a85', '#3d7fc4', '#245a9c', '#4a8fd0']); g.beginPath(); g.ellipse(rand(0, w), rand(0, h), rand(4, 9), rand(3, 6), rand(0, 3), 0, TAU); g.fill(); }
+  for (let i = 0; i < 7; i++) {
+    const x = rand(4, 60), y = rand(10, 60), r = rand(4, 6);
+    g.fillStyle = 'rgba(190,220,240,.85)';
+    for (let p = 0; p < 5; p++) { const a = p / 5 * TAU; g.beginPath(); g.ellipse(x + Math.cos(a) * r * .7, y + Math.sin(a) * r * .7, r * .55, r * .35, a, 0, TAU); g.fill(); }
+    g.fillStyle = '#2b66ad'; g.beginPath(); g.arc(x, y, 1.2, 0, TAU); g.fill();
+  }
+  g.fillStyle = '#1d4a85'; g.fillRect(0, 0, w, 5);
+  g.strokeStyle = '#f4f4f0'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(2, 4); g.lineTo(5, 14); g.moveTo(62, 4); g.lineTo(59, 14); g.stroke();
+});
+function clothTex(base, light, dark, stripe, extra){
+  return ptex(64, 64, (g, w, h) => {
+    g.fillStyle = base; g.fillRect(0, 0, w, h);
+    g.globalAlpha = .45; for (let i = 0; i < 40; i++) { g.fillStyle = Math.random() < .5 ? light : dark; g.fillRect(rand(0, w), rand(0, h), rand(1, 3), rand(8, 24)); } g.globalAlpha = 1;
+    g.fillStyle = dark; g.fillRect(15, 0, 2, h); g.fillRect(47, 0, 2, h);
+    if (stripe) { g.fillStyle = stripe; g.fillRect(12, 0, 3, h); g.fillRect(49, 0, 3, h); }
+    if (extra) extra(g, w, h);
+  });
+}
+const hoodieT = clothTex('#1d1e24', '#34363f', '#0c0c10', null, (g, w, h) => {
+  g.strokeStyle = '#0c0c10'; g.lineWidth = 1.5; g.strokeRect(-6, 40, 16, 16); g.strokeRect(54, 40, 16, 16);
+  g.strokeStyle = '#d8d8d8'; g.beginPath(); g.moveTo(3, 2); g.lineTo(5, 18); g.moveTo(61, 2); g.lineTo(59, 18); g.stroke();
+});
+const trackT = clothTex('#b3202a', '#d23a44', '#7e1118', '#f2f2f2');
+function buildDogePoly(outfit){
+  const {g, body} = rig(), OR = 0xe08a3c, WH = 0xf6ecdc, DK = 0x111111, W = 0xffffff;
+  const beach = outfit === 'beach', ski = outfit === 'ski', drip = outfit === 'drip';
+  const topT = beach ? tankT : ski ? hoodieT : trackT, legT = beach ? hibiscusT : ski ? camoT : trackT, sleeveT = beach ? dogeArmT : topT;
+  tube(body, .36, .40, .3, 8, W, 0, 1.08, 0, legT, 1.2, .78);
+  tube(body, .44, .35, .72, 8, W, 0, 1.52, 0, topT, 1.18, .72);
+  if (ski) orb(body, .3, W, 0, 1.9, -.12, 1.4, .5, 1, hoodieT);
+  tube(body, .13, .16, .26, 6, W, 0, 1.98, 0, ski ? hoodieT : dogeFurT);
+  const legL = pivot(body, -.2, 1.0, 0), legR = pivot(body, .2, 1.0, 0), kneeL = pivot(legL, 0, -.48, 0), kneeR = pivot(legR, 0, -.48, 0);
+  for (const [L, K] of [[legL, kneeL], [legR, kneeR]]) {
+    tube(L, .2, .21, .5, 7, W, 0, -.24, 0, legT, 1.05, .95);
+    if (beach) {
+      tube(K, .15, .1, .42, 6, W, 0, -.2, 0, dogeFurT);
+      part(K, .2, .07, .32, WH, 0, -.41, .06);
+      part(K, .26, .04, .44, 0x6b4323, 0, -.465, .07);
+      part(K, .02, .04, .14, 0x2a1a10, 0, -.43, .14);
+    } else {
+      tube(K, .16, .13, .44, 6, W, 0, -.2, 0, legT);
+      part(K, .22, .1, .34, drip ? 0xf4f4f4 : 0x1a1a1e, 0, -.42, .06);
+      part(K, .24, .04, .38, drip ? 0xe8e8e8 : 0x3a3a40, 0, -.475, .07);
+    }
+  }
+  const armL = pivot(body, -.56, 1.84, 0), armR = pivot(body, .56, 1.84, 0), elbowL = pivot(armL, 0, -.48, 0), elbowR = pivot(armR, 0, -.48, 0);
+  for (const [A, E] of [[armL, elbowL], [armR, elbowR]]) {
+    orb(A, .17, W, 0, -.02, 0, 1.1, .9, 1, sleeveT);
+    tube(A, .15, .13, .48, 6, W, 0, -.25, 0, sleeveT);
+    tube(E, .13, .09, .42, 6, W, 0, -.2, 0, beach ? dogeFurT : sleeveT);
+    orb(E, .12, beach ? WH : OR, 0, -.44, 0, 1, 1.05, 1);
+  }
+  const handR = pivot(elbowR, 0, -.47, 0);
+  const head = pivot(body, 0, 2.38, 0); head.scale.setScalar(1.14); // big Shiba head, like the reference
+  orb(head, .36, W, 0, 0, 0, 1, .92, 1.02, dogeHeadT, 10, 7);
+  const snout = new THREE.Mesh(facet(new THREE.CylinderGeometry(.15, .22, .34, 7).rotateX(Math.PI / 2).scale(1.15, .8, 1)), lam(ski ? 0x141418 : WH)); snout.position.set(0, -.1, .4); head.add(snout);
+  orb(head, .065, DK, 0, -.045, .59, 1.2, .8, .9, null, 6, 4);
+  part(head, .16, .02, .03, 0x3a2216, 0, -.2, .54);
+  for (const s of [-1, 1]) {
+    orb(head, .055, 0x2a1608, s * .15, .05, .31, 1, 1, .6, null, 6, 4);
+    const ear = new THREE.Mesh(facet(new THREE.ConeGeometry(.15, .34, 4)), lam(OR)); ear.position.set(s * .23, .4, -.02); ear.rotation.y = Math.PI / 4; ear.rotation.z = -s * .22; head.add(ear);
+    const inner = new THREE.Mesh(facet(new THREE.ConeGeometry(.08, .2, 4)), lam(WH)); inner.position.set(s * .22, .38, .06); inner.rotation.y = Math.PI / 4; inner.rotation.z = -s * .22; head.add(inner);
+  }
+  if (ski) {
+    orb(head, .385, 0x141418, 0, 0, -.01, 1, .94, 1.02, null, 10, 7);
+    part(head, .5, .14, .03, OR, 0, .05, .385);
+    for (const s of [-1, 1]) part(head, .1, .06, .02, DK, s * .15, .05, .405);
+    part(head, .18, .07, .02, 0xd06a4a, 0, -.2, .565);
+  }
+  if (drip) { part(head, .54, .11, .04, 0x0a0a0a, 0, .06, .33); for (const s of [-1, 1]) part(head, .03, .04, .3, 0x0a0a0a, s * .28, .06, .18); }
+  g.scale.setScalar(.82);
+  return {g, body, legL, legR, armL, armR, kneeL, kneeR, elbowL, elbowR, handR, head, armLen: .95};
+}
+function buildDoge(outfit){ try { return buildDogePoly(outfit); } catch (e) { console.warn('Polygon Doge failed, using block Doge', e); return buildDogeBlocks(outfit); } }
 const SKIN = [0xe8c4a2, 0xc68b5e, 0x8d5a3b, 0xf1d3b8, 0x6b4430];
 const SHIRT = [0xd64545, 0xe8e8e8, 0x3d7dd6, 0xf0b429, 0x2fa36b, 0x7a4fd1, 0x222222, 0xe67e22, 0x9fd3e8];
 const PANTS = [0x2b3445, 0x5c4a36, 0x1e1e22, 0x6d7a8a, 0x3a5a3a];
@@ -858,10 +1007,12 @@ function makeGun(key){
   return g;
 }
 function attachGun(m, key){
-  if (m.gun) m.armR.remove(m.gun);
+  if (m.gun) m.gun.parent.remove(m.gun);
   m.gun = null; m.longGun = false;
   if (!key || key === 'fists') return;
-  m.gun = makeGun(key); m.longGun = GUNS[key].len > .7; m.gun.position.set(0, -m.armLen, .06); m.armR.add(m.gun);
+  m.gun = makeGun(key); m.longGun = GUNS[key].len > .7;
+  if (m.handR) { m.gun.position.set(0, 0, .06); m.handR.add(m.gun); } // polygon Doge: the gun follows the forearm
+  else { m.gun.position.set(0, -m.armLen, .06); m.armR.add(m.gun); }
 }
 function animate(m, speed, dt, aimPitch){
   m.walkT = (m.walkT || 0) + dt * Math.max(speed, .01) * 1.9;
@@ -870,6 +1021,13 @@ function animate(m, speed, dt, aimPitch){
   if (m.punchT > 0) { m.punchT -= dt; m.armR.rotation.x = -1.6 * Math.sin(clamp(1 - m.punchT / .3, 0, 1) * Math.PI); }
   else m.armR.rotation.x = aimPitch !== null ? -Math.PI / 2 + aimPitch : m.longGun ? -.9 : s * .8;
   m.body.position.y = Math.abs(Math.cos(m.walkT)) * a * .08;
+  if (m.kneeL) { // polygon Doge: knees bend on the forward swing, elbows stay slightly bent unless aiming
+    const w = m.walkT, bend = a * 1.1, rest = -(.35 + a * .45);
+    m.kneeL.rotation.x = bend * Math.max(0, -Math.cos(w)); m.kneeR.rotation.x = bend * Math.max(0, Math.cos(w));
+    m.elbowL.rotation.x = rest;
+    m.elbowR.rotation.x = m.punchT > 0 ? rest * .3 : aimPitch !== null || m.longGun ? 0 : rest;
+    m.head.rotation.z = Math.sin(w * .5) * a * .05;
+  }
 }
 
 // ---------- audio ----------
@@ -1085,9 +1243,8 @@ function ensureClerk(s){
 SHOPS.forEach(ensureClerk);
 for (const s of PATRON_SPOTS) { const p = spawnChar('ped', s); p.stationary = true; p.yaw = 0; }
 for (const s of CASINO_DEALER_SPOTS) { const p = spawnChar('ped', s, buildHuman({skin: pick(FUR), shirt: 0x111111, pants: 0x111111, shoes: 0x111111, cat: true})); p.stationary = true; p.yaw = Math.PI; }
-const jewel = {alarm: false, alarmT: 0, robbed: false, restockT: 0};
-function spawnGuards(){ for (const s of JEWEL_GUARD_SPOTS) { const g = spawnChar('guard', s); g.yaw = Math.PI; g.home = s; } }
-spawnGuards();
+function spawnGuards(js){ for (const s of js.guardSpots) { const g = spawnChar('guard', s); g.yaw = Math.PI; g.home = s; g.store = js; } }
+JEWELS.forEach(spawnGuards);
 const dancers = POLES.map((p, k) => { const m = buildDancer(pick(FUR), BIKINI[k % BIKINI.length]); scene.add(m.g); return {m, pole: p, ph: k * 2.1, spin: 1}; });
 const inBox = (o, b, pad = 0) => !!b && o.x > b.x0 - pad && o.x < b.x1 + pad && o.z > b.z0 - pad && o.z < b.z1 + pad;
 
@@ -1200,7 +1357,7 @@ for (const t of ['health', 'armour', 'ammo']) for (let i = 0; i < 24; i++) addPi
 for (let i = 0; i < 3; i++) addPickup(['health', 'armour', 'ammo'][i], {x: WORLD + 10 + i * 3, z: node(4) + 6});
 
 // ---------- player ----------
-const P = {x: START.x, z: START.z, yaw: Math.PI, hp: 100, armour: 0, inCar: null, cd: 0, gun: 'pistol', outfit: 'beach', m: null, dead: false, deadT: 0, aimT: 0, speed: 0, reloadT: 0, reloadGun: null, punchCd: 0, ammo: {}};
+const P = {x: START.x, z: START.z, yaw: Math.PI, hp: 100, armour: 0, inCar: null, cd: 0, gun: 'pistol', outfit: 'beach', m: null, dead: false, deadT: 0, aimT: 0, speed: 0, reloadT: 0, reloadGun: null, punchCd: 0, ammo: {}, y: 0, vy: 0, fallFrom: 0};
 const fullAmmo = () => { for (const k of GUN_KEYS) P.ammo[k] = {mag: GUNS[k].mag, res: GUNS[k].res}; };
 fullAmmo();
 let money = 0, ticker = 'COIN', heat = 0, wanted = 0, lastCrime = 0, starFlash = 0, copTimer = 0, policeTimer = 0, time = 0, hurt = 0;
@@ -1320,10 +1477,14 @@ function playerShoot(G){
     const end = camera.position.clone().addScaledVector(d, hit.t);
     tracer(muzzle, end, 'p');
     if (CHAR_KINDS.includes(hit.type)) { burst(end, 'blood', 6); damage(hit.obj, G.dmg, true); }
-    else if (hit.type) { burst(end, hit.type === 'car' ? 'spark' : 'dust', 4); if (hit.type === 'car' && !hit.obj.T.armor) carDamage(hit.obj, G.dmg * 7); }
+    else if (hit.type) { burst(end, hit.type === 'car' ? 'spark' : 'dust', 4); if (hit.type === 'car') {
+      const occ = aliveCops(hit.obj);
+      if (occ.length && Math.random() < .6) { const o = pick(occ); o.hp -= G.dmg; burst(end, 'blood', 5); if (o.hp <= 0) killCarCop(hit.obj, o, true); }
+      if (!hit.obj.T.armor) carDamage(hit.obj, G.dmg * 7);
+    } }
   }
   panicNear(P.x, P.z, 32);
-  if (inBox(P, JEWEL_ROOM)) alarmJewel();
+  for (const js of JEWELS) if (inBox(P, js.room)) alarmJewel(js);
   for (const c of [...cats, ...greens]) if (!c.dead && (c.x - P.x) ** 2 + (c.z - P.z) ** 2 < 900) c.angry = Math.max(c.angry, 8);
 }
 const rockets = [], rocketGeo = new THREE.CylinderGeometry(.08, .08, .55, 6).rotateX(Math.PI / 2), rocketMat = new THREE.MeshLambertMaterial({color: 0x5a6a3a});
@@ -1385,7 +1546,7 @@ function enemyShoot(c, d, acc, dmg, snd){
   const muzzle = c.m.gun.userData.muzzle.getWorldPosition(new THREE.Vector3());
   const tx = P.inCar ? P.inCar.x : P.x, tz = P.inCar ? P.inCar.z : P.z;
   const hit = Math.random() < acc;
-  const end = new THREE.Vector3(tx + (hit ? 0 : rand(-1.6, 1.6)), 1.2 + (hit ? 0 : rand(-.6, .8)), tz + (hit ? 0 : rand(-1.6, 1.6)));
+  const end = new THREE.Vector3(tx + (hit ? 0 : rand(-1.6, 1.6)), (P.inCar ? P.inCar.y : P.y) + 1.2 + (hit ? 0 : rand(-.6, .8)), tz + (hit ? 0 : rand(-1.6, 1.6)));
   tracer(muzzle, end, 'c'); flashGun(c.m);
   SFX.shot(snd, clamp(1 - d / 70, 0, 1) * .7);
   if (hit) {
@@ -1398,17 +1559,18 @@ function enemyShoot(c, d, acc, dmg, snd){
 // ---------- car enter / exit ----------
 function nearestCar(){
   let best = null, bd = Infinity;
-  for (const c of cars) { if (c.wreck || c.y > 1) continue; const r = c.T.tank || c.T.heli ? 4.6 : 3.8, d = Math.hypot(c.x - P.x, c.z - P.z); if (d < r && d < bd) { bd = d; best = c; } }
+  for (const c of cars) { if (c.wreck || Math.abs(c.y - P.y) > 1.5) continue; const r = c.T.tank || c.T.heli ? 4.6 : 3.8, d = Math.hypot(c.x - P.x, c.z - P.z); if (d < r && d < bd) { bd = d; best = c; } }
   return best;
 }
 function toggleCar(){
   if (P.dead || state !== 'play') return;
   if (P.inCar) {
     const c = P.inCar, rx = -Math.cos(c.yaw), rz = Math.sin(c.yaw);
-    if (c.T.heli && c.y > groundY(c.x, c.z) + .6) { showBanner('LAND FIRST', 'Land on the ground to get out', 1.6, true); return; }
+    if (c.T.heli && c.y > heliFloor(c.x, c.z) + .6) { showBanner('LAND FIRST', 'Land on the ground or a roof to get out', 1.6, true); return; }
+    P.y = c.T.heli ? c.y : 0; P.vy = 0; P.fallFrom = P.y;
     let placed = false;
-    for (const s of c.T.tank ? [-2.8, 2.8, -3.6, 3.6] : [-2.2, 2.2, -3, 3]) { const x = c.x + rx * s, z = c.z + rz * s; if (!hitBuilding(x, z, .45) && !hitCar(x, z, .45, null)) { P.x = x; P.z = z; placed = true; break; } }
-    if (!placed) { P.x = c.x; P.z = c.z + 3; }
+    for (const s of c.T.tank ? [-2.8, 2.8, -3.6, 3.6] : [-2.2, 2.2, -3, 3]) { const x = c.x + rx * s, z = c.z + rz * s; if (!blockedP(x, z, .45) && roofAt(x, z, P.y + .6) >= P.y - .3) { P.x = x; P.z = z; placed = true; break; } }
+    if (!placed) { P.x = c.x; P.z = c.z; }
     P.yaw = c.yaw; camYaw = chaseYaw + carLook; carLook = 0; P.inCar = null; P.m.g.visible = true; SFX.door();
   } else {
     const c = nearestCar(); if (!c) return;
@@ -1425,18 +1587,44 @@ function spawnPoliceCar(){
     const i = Math.floor(rand(0, N + 1)), j = Math.floor(rand(0, N + 1)), x = node(i), z = node(j), d = Math.hypot(x - P.x, z - P.z);
     if (d < 60 || d > 120 || hitCar(x, z, 1.5, null)) continue;
     const a = Math.atan2(P.x - x, P.z - z), yaw = Math.round(a / (Math.PI / 2)) * (Math.PI / 2);
-    const c = addCar(x, z, yaw, 'police', null, true); c.speed = 4; return;
+    const c = addCar(x, z, yaw, 'police', null, true); c.speed = 4;
+    c.occupants = [-.42, .42].map(sx => {
+      const g = new THREE.Group(); g.position.set(sx, 1.33, .1); c.g.add(g);
+      part(g, .32, .32, .32, pick(SKIN), 0, 0, 0); part(g, .36, .1, .36, 0x14213d, 0, .2, 0); part(g, .36, .03, .16, 0x14213d, 0, .16, .22);
+      return {g, hp: 2.5, alive: true};
+    });
+    c.shootCd = rand(1, 2);
+    return;
   }
+}
+const aliveCops = c => c.occupants ? c.occupants.filter(o => o.alive) : [];
+// A cop inside a chasing car was shot or blown up.
+function killCarCop(c, o, byPlayer){
+  if (!o.alive) return;
+  o.alive = false; o.g.visible = false;
+  const rx = -Math.cos(c.yaw), rz = Math.sin(c.yaw);
+  burst(new THREE.Vector3(c.x, 1.4, c.z), 'blood', 8);
+  addDrop(c.x + rx * 2.2, c.z + rz * 2.2, 5);
+  if (byPlayer) crime(2);
+  if (!aliveCops(c).length) { c.ai = null; c.occupants = null; }
 }
 function policeDrive(c, dt){
   if (wanted === 0 || P.dead) { c.ai = null; return; }
   const tx = P.inCar ? P.inCar.x : P.x, tz = P.inCar ? P.inCar.z : P.z, d = Math.hypot(tx - c.x, tz - c.z);
+  c.shootCd -= dt;
+  if (c.shootCd <= 0 && d < 26 && aliveCops(c).length && lineOfSight(c.x, 1.4, c.z, tx, (P.y || 0) + 1.2, tz)) {
+    c.shootCd = rand(1.2, 2);
+    const from = new THREE.Vector3(c.x - Math.cos(c.yaw) * 1.1, 1.4, c.z + Math.sin(c.yaw) * 1.1), hit = Math.random() < Math.max(.12, .45 - d / 70);
+    const end = new THREE.Vector3(tx + (hit ? 0 : rand(-1.6, 1.6)), (P.y || 0) + 1.2, tz + (hit ? 0 : rand(-1.6, 1.6)));
+    tracer(from, end, 'c'); SFX.shot('pistol', clamp(1 - d / 70, 0, 1) * .7);
+    if (hit) { if (!P.inCar) hurtPlayer(6); else if (!P.inCar.T.armor) { hurtPlayer(4); carDamage(P.inCar, 8); } burst(end, P.inCar ? 'spark' : 'blood', 4); }
+  }
   if (!P.inCar && d < 11) {
     c.speed *= Math.exp(-5 * dt);
     if (Math.abs(c.speed) < 1.5) {
       const rx = -Math.cos(c.yaw), rz = Math.sin(c.yaw);
-      for (const s of [-2.4, 2.4]) { const x = c.x + rx * s, z = c.z + rz * s; if (!blocked(x, z, .45)) { const cop = spawnChar('cop', {x, z}); cop.yaw = c.yaw; } }
-      c.ai = null;
+      aliveCops(c).forEach((o, k) => { const s = k ? 2.4 : -2.4, x = c.x + rx * s, z = c.z + rz * s; if (!blocked(x, z, .45)) { const cop = spawnChar('cop', {x, z}); cop.yaw = c.yaw; } o.alive = false; o.g.visible = false; });
+      c.occupants = null; c.ai = null;
     }
     return;
   }
@@ -1473,6 +1661,8 @@ const MISSIONS = [
     onKill(M, ch){ if (ch.kind === 'cat') M.count++; }},
   robMission(SHOPS[0], 'rob', 'Stick Up'),
   robMission(SHOPS[1], 'rob2', 'Quik Cash'),
+  robMission(SHOPS[2], 'rob3', 'Express Lane'),
+  robMission(SHOPS[3], 'rob4', 'Late Night Run'),
   {id: 'greens', name: 'Turf War', letter: 'G', at: lotCorner(3, 3, 0, 0), reward: 900, blurb: 'Take out 5 Green Street gang members',
     start(M){ M.count = 0; },
     update(M){
@@ -1715,10 +1905,10 @@ syncFsButtons();
 $('wasted').addEventListener('pointerdown', () => { if (P.dead && P.deadT > 1.5) respawn(); });
 function respawn(){
   P.inCar = null;
-  Object.assign(P, {x: START.x, z: START.z, hp: 100, armour: 0, dead: false, deadT: 0, cd: 0, reloadT: 0});
+  Object.assign(P, {x: START.x, z: START.z, hp: 100, armour: 0, dead: false, deadT: 0, cd: 0, reloadT: 0, y: 0, vy: 0, fallFrom: 0});
   P.m.g.visible = true; P.m.body.rotation.x = 0; P.m.body.position.y = 0;
   for (const k of GUN_KEYS) if (P.ammo[k].mag + P.ammo[k].res === 0) P.ammo[k].res = GUNS[k].mag;
-  heat = 0; wanted = 0; jewel.alarm = false;
+  heat = 0; wanted = 0; for (const js of JEWELS) js.alarm = false;
   const bill = Math.min(money, 100); money -= bill; save();
   showBanner('HOSPITAL BILL', bill ? `-$${bill}` : 'You were broke, so it was free', 3, true);
   for (const c of cops) scene.remove(c.m.g); cops.length = 0;
@@ -1738,7 +1928,7 @@ function updatePlayer(dt){
   const [jx, jy] = joystick();
   if (P.inCar) {
     const c = P.inCar;
-    P.x = c.x; P.z = c.z;
+    P.x = c.x; P.z = c.z; P.y = c.y;
     P.cd -= dt;
     if (c.T.tank) { c.cannonCd = (c.cannonCd || 0) - dt; if ((mouseDown || touchFire) && c.cannonCd <= 0) { fireShell(c); c.cannonCd = 1.3; } }
     else if ((mouseDown || touchFire) && P.cd <= 0 && !GUNS[P.gun].melee) tryFire();
@@ -1750,7 +1940,7 @@ function updatePlayer(dt){
     let mx = fx * iz + rx * ix, mz = fz * iz + rz * ix; const ml = Math.hypot(mx, mz);
     if (ml > 1) { mx /= ml; mz /= ml; }
     const sp = (keys.shift && !rightDown ? 8 : rightDown ? 3.4 : 4.6) * Math.min(1, ml);
-    if (ml > .05) moveCircle(P, mx * sp * dt, mz * sp * dt, .45);
+    if (ml > .05) movePlayer(mx * sp * dt, mz * sp * dt);
     P.speed = ml > .05 ? sp : 0;
     const firing = mouseDown || touchFire;
     if (firing || rightDown) P.aimT = 1.2; P.aimT -= dt;
@@ -1759,7 +1949,7 @@ function updatePlayer(dt){
     animate(P.m, P.speed, dt, P.aimT > 0 && !GUNS[P.gun].melee ? -camPitch * .8 : null);
     P.cd -= dt;
     if (firing && P.cd <= 0) tryFire();
-    P.m.g.position.set(P.x, groundY(P.x, P.z), P.z); P.m.g.rotation.y = P.yaw;
+    updatePlayerY(dt); P.m.g.position.set(P.x, P.y, P.z); P.m.g.rotation.y = P.yaw;
   }
   const near = nearestInteract();
   for (const a of ATMS) if (!near || near.atm !== a) a.prog = 0;
@@ -1785,7 +1975,7 @@ function updatePlayer(dt){
   if (wanted === 0) P.hp = Math.min(100, P.hp + 2 * dt);
   if (P.hp <= 0 && !P.dead) {
     P.dead = true; P.deadT = 0; P.hp = 0; mouseDown = rightDown = false;
-    if (P.inCar) { const c = P.inCar; P.inCar = null; P.x = c.x + 2; P.z = c.z; P.m.g.visible = true; P.m.g.position.set(P.x, groundY(P.x, P.z), P.z); }
+    if (P.inCar) { const c = P.inCar; P.inCar = null; P.x = c.x + 2; P.z = c.z; P.m.g.visible = true; P.y = 0; P.m.g.position.set(P.x, groundY(P.x, P.z), P.z); }
     if (M) endMission(false, 'You got wasted');
     $('wasted').hidden = false; SFX.fail();
   }
@@ -1896,7 +2086,7 @@ function gangShoot(c, t, snd){
 }
 function chaseAndShoot(c, dt, tgt, opts){
   const dx = tgt.x - c.x, dz = tgt.z - c.z, d = Math.hypot(dx, dz);
-  const los = d < opts.range && lineOfSight(c.x, 1.5, c.z, tgt.x, 1.2, tgt.z);
+  const los = d < opts.range && lineOfSight(c.x, 1.5, c.z, tgt.x, (tgt === P ? (P.inCar ? P.inCar.y : P.y) : 0) + 1.2, tgt.z);
   let a = Math.atan2(dx, dz);
   c.yaw = lerpAngle(c.yaw, a, 1 - Math.exp(-8 * dt));
   if (c.stuck > 0) { c.stuck -= dt; a += c.sd * 1.4; }
@@ -2014,7 +2204,7 @@ function updateCamera(dt){
     return;
   }
   const fx = Math.sin(camYaw), fz = Math.cos(camYaw), rx = -Math.cos(camYaw), rz = Math.sin(camYaw);
-  const tgt = tmpV.set(P.x + rx * .7, groundY(P.x, P.z) + 1.85, P.z + rz * .7);
+  const tgt = tmpV.set(P.x + rx * .7, P.y + 1.85, P.z + rz * .7);
   camDir.set(fx * Math.cos(camPitch), -Math.sin(camPitch), fz * Math.cos(camPitch));
   const want = rightDown ? 2.8 : 4.2;
   let dist = want;
@@ -2052,6 +2242,7 @@ const hpEl = $('hp'), arEl = $('ar'), moneyEl = $('money'), starsEl = $('stars')
 const radar = $('radar'), rctx = radar.getContext('2d');
 const fmtTime = s => { const t = Math.max(0, Math.ceil(s)); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); };
 function updateHUD(dt){
+  updateGolden(dt);
   hpEl.style.width = Math.max(0, P.hp) + '%';
   arEl.style.width = P.armour + '%'; $('arWrap').style.visibility = P.armour > 0 ? 'visible' : 'hidden';
   moneyEl.textContent = '$' + ticker + ' ' + String(money).padStart(6, '0');
@@ -2114,7 +2305,7 @@ function updateHUD(dt){
   if (CLUB_ROOM) poi(CLUB_ROOM.cx, CLUB_ROOM.z0 - 1, '#ff4fd8', 'K');
   if (CASINO_ROOM) poi(CASINO_ROOM.cx, CASINO_ROOM.z0 - 1, '#f6c445', '♣');
   if (DEALER_LOT) poi((DEALER_LOT.x0 + DEALER_LOT.x1) / 2, DEALER_LOT.z1, '#6fa0ff', 'V');
-  if (JEWEL_ROOM) poi(JEWEL_ROOM.cx, JEWEL_ROOM.z1 + 1, '#9fe7ff', '◆');
+  for (const js of JEWELS) if (js.room) poi(js.room.cx, js.room.z1 + 1, '#9fe7ff', '◆');
   poi(HIRE_SPOT.x, HIRE_SPOT.z, '#ffb347', 'B');
   if (M && M.target) dot(M.target.x, M.target.z, 5, '#ff3040', true);
   rctx.rotate(-(P.inCar ? P.inCar.yaw : P.yaw) + phi);
@@ -2136,6 +2327,7 @@ function blowUp(c){
     if (hitBuilding(P.x, P.z, .45)) { P.x = c.x; P.z = c.z + 2.6; }
     P.m.g.visible = true; camYaw = chaseYaw + carLook; carLook = 0;
   }
+  for (const o of aliveCops(c)) killCarCop(c, o, true);
   explode(new THREE.Vector3(c.x, c.y + 1, c.z));
   c.g.traverse(o => { if (o.isMesh && o.material !== shadowMat) o.material = burntMat; });
   c.speed = 0;
@@ -2162,6 +2354,31 @@ function heliFloor(x, z){
   let f = groundY(x, z);
   for (const b of buildings) { if (b.invisible) continue; if (x > b.x0 - .8 && x < b.x1 + .8 && z > b.z0 - .8 && z < b.z1 + .8) f = Math.max(f, b.h); }
   return f;
+}
+// Standing on roofs: the player has a height, ignores buildings below their feet and falls off edges.
+function roofAt(x, z, maxH){
+  let f = groundY(x, z);
+  for (const b of buildings) { if (b.invisible || b.h > maxH) continue; if (x >= b.x0 && x <= b.x1 && z >= b.z0 && z <= b.z1) f = Math.max(f, b.h); }
+  return f;
+}
+function blockedP(x, z, r){
+  if (P.y < 1) return blocked(x, z, r);
+  if (x < r || z < r || x > XMAX - r || z > WORLD - r) return true;
+  for (const b of buildings) {
+    if (b.h <= P.y + .6 || (b.y0 || 0) > P.y + 2) continue;
+    const nx = clamp(x, b.x0, b.x1), nz = clamp(z, b.z0, b.z1);
+    if ((x - nx) ** 2 + (z - nz) ** 2 < r * r) return true;
+  }
+  return false;
+}
+function movePlayer(dx, dz){ if (!blockedP(P.x + dx, P.z, .45)) P.x += dx; if (!blockedP(P.x, P.z + dz, .45)) P.z += dz; }
+function updatePlayerY(dt){
+  const floor = roofAt(P.x, P.z, P.y + .6);
+  if (P.y > floor + .05) {
+    if (P.vy === 0) P.fallFrom = P.y;
+    P.vy -= 25 * dt; P.y += P.vy * dt;
+    if (P.y <= floor) { const drop = P.fallFrom - floor; P.y = floor; P.vy = 0; if (drop > 5) hurtPlayer((drop - 5) * 7); }
+  } else { P.y = floor; P.vy = 0; }
 }
 function heliBlocked(x, z, y){
   if (x < 2 || z < 2 || x > XMAX - 2 || z > WORLD - 2) return true;
@@ -2240,7 +2457,7 @@ function buyVehicle(s){
 // ---------- ATMs ----------
 const ATMS = [];
 {
-  const special = l => SHOPS.some(s => s.i === l.i && s.j === l.j) || [CLUB, CASINO, DEALER, JEWEL, SCRAP].some(s => s.i === l.i && s.j === l.j);
+  const special = l => SHOPS.some(s => s.i === l.i && s.j === l.j) || [CLUB, CASINO, DEALER, SCRAP, ...JEWELS].some(s => s.i === l.i && s.j === l.j);
   const atmMat = lam(0x8a8f99), onMat = new THREE.MeshBasicMaterial({color: 0x39d0ff});
   const pool = lots.filter(l => !special(l));
   for (let k = 0; k < 16 && pool.length; k++) {
@@ -2263,29 +2480,30 @@ function robAtm(a){
 }
 
 // ---------- jewellery store ----------
-function alarmJewel(){
-  if (!jewel.alarm) { showBanner('ALARM!', 'Security is coming for you', 2, true); tone(880, .4, 'square', .12); tone(660, .4, 'square', .12, null, .4); }
-  jewel.alarm = true; jewel.alarmT = 45;
+function alarmJewel(js){
+  if (!js.alarm) { showBanner('ALARM!', 'Security is coming for you', 2, true); tone(880, .4, 'square', .12); tone(660, .4, 'square', .12, null, .4); }
+  js.alarm = true; js.alarmT = 45;
 }
 function smashCase(cs){
   if (!cs.loot) return;
+  const js = cs.store;
   cs.loot = false; cs.gl.visible = false; cs.gems.visible = false;
-  money += 150; jewel.robbed = true; jewel.restockT = 0;
+  money += 150; js.robbed = true; js.restockT = 0;
   noise(.4, 5000, 'highpass', .6); SFX.coin(); burst(new THREE.Vector3(cs.x, 1.2, cs.z), 'spark', 12, 4);
   P.yaw = Math.atan2(cs.x - P.x, cs.z - P.z); P.m.punchT = .3;
-  alarmJewel(); crime(heat < 3 ? 3 - heat : 1);
+  alarmJewel(js); crime(heat < 3 ? 3 - heat : 1);
 }
-function restockJewel(){
-  jewel.robbed = false; jewel.restockT = 0; jewel.alarm = false;
-  for (const c of JEWEL_CASES) { c.loot = true; c.gl.visible = true; c.gems.visible = true; }
-  if (!guards.some(g => !g.dead)) spawnGuards();
+function restockJewel(js){
+  js.robbed = false; js.restockT = 0; js.alarm = false;
+  for (const c of js.cases) { c.loot = true; c.gl.visible = true; c.gems.visible = true; }
+  if (!guards.some(g => !g.dead && g.store === js)) spawnGuards(js);
 }
 function updateGuards(dt){
   for (let i = guards.length - 1; i >= 0; i--) {
     const g = guards[i];
     if (g.dead) { deadAnim(guards, i, dt); continue; }
     let aim = null;
-    if ((jewel.alarm || g.angry > 0) && !P.dead) { g.angry -= dt; aim = chaseAndShoot(g, dt, P, {range: 30, keep: 5, speed: 4.6, cd: [.6, 1.2], acc: .6, dmg: 8, snd: 'shotgun'}); }
+    if ((g.store.alarm || g.angry > 0) && !P.dead) { g.angry -= dt; aim = chaseAndShoot(g, dt, P, {range: 30, keep: 5, speed: 4.6, cd: [.6, 1.2], acc: .6, dmg: 8, snd: 'shotgun'}); }
     else {
       g.speed = 0;
       const d = Math.hypot(g.home.x - g.x, g.home.z - g.z);
@@ -2295,8 +2513,10 @@ function updateGuards(dt){
     animate(g.m, g.speed, dt, aim);
     g.m.g.position.set(g.x, groundY(g.x, g.z), g.z); g.m.g.rotation.y = g.yaw;
   }
-  if (jewel.alarm) { jewel.alarmT -= dt; if (jewel.alarmT <= 0 && !inBox(P, JEWEL_ROOM, 25)) jewel.alarm = false; }
-  if (jewel.robbed) { jewel.restockT += dt; if (jewel.restockT > 180 && !inBox(P, JEWEL_ROOM, 40)) restockJewel(); }
+  for (const js of JEWELS) {
+    if (js.alarm) { js.alarmT -= dt; if (js.alarmT <= 0 && !inBox(P, js.room, 25)) js.alarm = false; }
+    if (js.robbed) { js.restockT += dt; if (js.restockT > 180 && !inBox(P, js.room, 40)) restockJewel(js); }
+  }
   for (const a of ATMS) if (a.cd > 0) { a.cd -= dt; if (a.cd <= 0) a.screen.material = atmOnMat; }
   if (CASINO_WHEEL) CASINO_WHEEL.rotation.y += dt * (rouletteSpinning ? 9 : .6);
 }
@@ -2323,7 +2543,7 @@ function findThreat(g){
   if (wanted > 0) cops.forEach(consider);
   for (const c of cats) if (c.angry > 0 || inBox(P, TURF, 8)) consider(c);
   for (const c of greens) if (c.angry > 0 || inBox(P, TURF_F, 8)) consider(c);
-  if (jewel.alarm) guards.forEach(consider);
+  for (const gd of guards) if (gd.store.alarm) consider(gd);
   return best;
 }
 function crewShoot(g, t){
@@ -2370,7 +2590,7 @@ const GAME_NAMES = {slots: 'Slots', roulette: 'Roulette', blackjack: 'Blackjack'
 const interacts = [
   ...ATMS.map(a => ({x: a.x, z: a.z, r: 1.6, hold: 3, atm: a, ok: () => a.cd <= 0,
     label: () => a.prog > 0 ? `Cracking the ATM… ${Math.ceil(3 - a.prog)}` : `${keyWord(true)} to crack the ATM`, act: () => robAtm(a)})),
-  ...JEWEL_CASES.map(cs => ({x: cs.x, z: cs.z + 1.3, r: 1.5, ok: () => cs.loot, label: () => `${keyWord()} to smash the case ($150)`, act: () => smashCase(cs)})),
+  ...JEWELS.flatMap(js => js.cases).map(cs => ({x: cs.x, z: cs.z + 1.3, r: 1.5, ok: () => cs.loot, label: () => `${keyWord()} to smash the case ($150)`, act: () => smashCase(cs)})),
   ...CASINO_SPOTS.map(s => ({x: s.x, z: s.z, r: 1.4, label: () => `${keyWord()} to play ${GAME_NAMES[s.game]}`, act: () => openCasino(s.game)})),
   ...DEALER_SPOTS.map(s => ({x: s.x, z: s.z, r: 1.6,
     label: () => owned.has(s.type) ? `${keyWord()} to take out your ${s.name}` : `${keyWord()} to buy the ${s.name} for $${s.price.toLocaleString()}`, act: () => buyVehicle(s)})),
@@ -2390,6 +2610,7 @@ function cMsg(text, kind){ cMsgEl.textContent = text; cMsgEl.className = 'cmsg' 
 function renderCasino(){
   $('cCash').textContent = '$' + money.toLocaleString();
   document.querySelectorAll('[data-bet]').forEach(b => b.setAttribute('aria-pressed', +b.dataset.bet === cBet));
+  const bi = $('cBetIn'); if (document.activeElement !== bi) bi.value = cBet;
   document.querySelectorAll('[data-r]').forEach(b => b.setAttribute('aria-pressed', b.dataset.r === rBet));
   renderBJ();
 }
@@ -2405,9 +2626,14 @@ function openCasino(game){
 $('cLeave').addEventListener('click', () => {
   if (cBusy) return;
   if (bj && !bj.done) { cMsg('Finish this hand first', 'lose'); return; }
-  $('casino').hidden = true; save(); resumeGame();
+  $('casino').hidden = true; lastMoney = money; save(); resumeGame();
 });
 document.querySelectorAll('[data-bet]').forEach(b => b.addEventListener('click', () => { if (!cBusy && !(bj && !bj.done)) { cBet = +b.dataset.bet; renderCasino(); } }));
+$('cBetIn').addEventListener('input', e => {
+  if (cBusy || (bj && !bj.done)) { e.target.value = cBet; return; }
+  const v = Math.floor(+e.target.value);
+  if (v >= 1) { cBet = v; renderCasino(); }
+});
 
 // Slots: weighted reels, about 87% paid back over time.
 const SLOT_SYMS = [{k: 'CHERRY', w: 6, c: '#ff5a6a'}, {k: 'BELL', w: 5, c: '#ffd23a'}, {k: 'BAR', w: 4, c: '#e8eef4'}, {k: '7', w: 2, c: '#ff8a3a'}, {k: 'DOGE', w: 1, c: '#f6c445'}];
@@ -2503,6 +2729,25 @@ $('bjDouble').addEventListener('click', () => {
   money -= bj.bet; bj.bet *= 2; bj.p.push(drawCard());
   if (handVal(bj.p) > 21) bjFinish(); else bjDealerPlay();
 });
+
+// ---------- golden hour ----------
+// Every 30 minutes on the clock (:00 and :30) money pays double for 5 minutes. Casino winnings don't count.
+const GOLD_EVERY = 30 * 60, GOLD_LEN = 5 * 60;
+const goldPhase = () => Math.floor(Date.now() / 1000) % GOLD_EVERY;
+let lastMoney = money, wasGold = false, goldMix = 0;
+const skyBase = scene.background.clone(), fogBase = scene.fog.color.clone(), skyGold = new THREE.Color(0xf0a24c), fogGold = new THREE.Color(0xf3c48a);
+function updateGolden(dt){
+  const ph = goldPhase(), on = ph < GOLD_LEN;
+  if (on && !wasGold) { showBanner('GOLDEN HOUR!', 'Double money for the next 5 minutes', 3.5); SFX.pass(); }
+  wasGold = on;
+  if (on && money > lastMoney) money += money - lastMoney;
+  lastMoney = money;
+  const el = $('golden');
+  el.classList.toggle('on', on);
+  el.textContent = on ? `GOLDEN HOUR 2× · ${fmtTime(GOLD_LEN - ph)}` : `Golden hour in ${fmtTime(GOLD_EVERY - ph)}`;
+  goldMix += ((on ? .5 : 0) - goldMix) * (1 - Math.exp(-dt));
+  scene.background.copy(skyBase).lerp(skyGold, goldMix); scene.fog.color.copy(fogBase).lerp(fogGold, goldMix);
+}
 
 // ---------- loop ----------
 let last = performance.now();
