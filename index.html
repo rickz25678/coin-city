@@ -369,6 +369,7 @@ body.touch .tr{transform:scale(.78);transform-origin:top right}
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script>
 (() => {
 const $ = id => document.getElementById(id);
@@ -714,7 +715,8 @@ const OUTFITS = [
   {id: 'ski', name: 'Ski Mask', tag: 'Black hoodie, camo cargos, mask on'},
   {id: 'drip', name: 'Drip', tag: 'Red tracksuit, white kicks, shades'},
 ];
-function buildDoge(outfit){
+// Block Doge: the coloured-box build. Used until doge.glb has loaded, and if it fails to load.
+function buildDogeBlocks(outfit){
   const {g, body} = rig(), OR = 0xe08a3c, WH = 0xf6ecdc;
   const beach = outfit === 'beach', ski = outfit === 'ski', drip = outfit === 'drip';
   const top = beach ? 0xf2f2ee : ski ? 0x1d1e24 : 0xb3202a;
@@ -784,6 +786,104 @@ function buildDoge(outfit){
   }
   g.scale.setScalar(.82);
   return {g, body, legL, legR, armL, armR, armLen: 1.02};
+}
+// ---------- Doge: real 3D model ----------
+// doge.glb is a textured model generated from reference-doge.png (GRAPHICS.md). It has no skeleton, so it is rigged here
+// the way PS2 peds were: every vertex is handed to a bone by where it sits on the body in its A-pose, with short blends at
+// the joints. The bones take the same rotations the block Doge pivots did, so animate(), attachGun() and the death fall
+// work unchanged. X and Y below are fractions of the model's height, X measured from the centre line.
+let dogeGLB = null; const dogeTexCache = {};
+const ramp = (v, a, b) => clamp((v - a) / (b - a), 0, 1);
+const DJ = {hip: .37, knee: .21, neck: .73, shoulder: .70, elbow: .52, wrist: .42, legX: .06, armX: .17, shoulderX: .13};
+function dogeRegion(X, Y){ // -> [bone, its weight, bone that takes the rest]
+  const ax = Math.abs(X), thr = Y > .66 ? .15 : Y > .5 ? .125 : .135, s = X > 0 ? 'R' : 'L';
+  if (Y >= .40 && Y < .78 && ax > thr) {
+    const up = 'arm' + s, lo = 'fore' + s;
+    if (Y > .66) return [up, ramp(ax, thr, thr + .03), 'hips'];
+    return Y > DJ.elbow ? [up, 1, up] : [lo, ramp(DJ.elbow - Y, 0, .04), up];
+  }
+  if (Y >= DJ.neck) return ['head', ramp(Y, DJ.neck - .02, DJ.neck + .02), 'hips'];
+  if (Y < DJ.hip) {
+    const th = 'leg' + s, sh = 'shin' + s;
+    return Y > DJ.knee ? [th, ramp(DJ.hip - Y, 0, .04), 'hips'] : [sh, ramp(DJ.knee - Y, 0, .04), th];
+  }
+  return ['hips', 1, 'hips'];
+}
+function dogeGeometry(){ // the model's mesh turned to face +z like every other character, cached
+  if (dogeGLB.geo) return dogeGLB.geo;
+  const src = dogeGLB.scene.getObjectByProperty('type', 'Mesh');
+  const geo = src.geometry.clone().rotateY(Math.PI); geo.computeBoundingBox();
+  const bb = geo.boundingBox, h = bb.max.y - bb.min.y;
+  const frame = {h, cx: (bb.min.x + bb.max.x) / 2, cz: (bb.min.z + bb.max.z) / 2, y0: bb.min.y};
+  const pos = geo.attributes.position, n = pos.count, si = new Uint16Array(n * 4), sw = new Float32Array(n * 4);
+  const order = ['hips', 'head', 'armL', 'foreL', 'armR', 'foreR', 'legL', 'shinL', 'legR', 'shinR'], idx = {}; order.forEach((k, i) => idx[k] = i);
+  for (let i = 0; i < n; i++) {
+    const [a, wa, b] = dogeRegion((pos.getX(i) - frame.cx) / h, (pos.getY(i) - frame.y0) / h);
+    si[i * 4] = idx[a]; sw[i * 4] = wa; si[i * 4 + 1] = idx[b]; sw[i * 4 + 1] = 1 - wa;
+  }
+  geo.setAttribute('skinIndex', new THREE.BufferAttribute(si, 4)); geo.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4));
+  return dogeGLB.geo = {geo, frame, order, map: src.material.map};
+}
+function dogeTexture(outfit){
+  if (dogeTexCache[outfit]) return dogeTexCache[outfit];
+  const {map, geo, frame} = dogeGeometry();
+  let t;
+  if (outfit === 'beach') { t = map.clone(); t.needsUpdate = true; }
+  else {
+    // Ski Mask and Drip are recolours of the one texture: the white vest and blue shorts are picked out by colour, the head by its triangles.
+    const img = map.image, c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+    const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+    const id = g.getImageData(0, 0, c.width, c.height), d = id.data;
+    const mask = document.createElement('canvas'); mask.width = c.width; mask.height = c.height;
+    if (outfit === 'ski') {
+      const mg = mask.getContext('2d'), pos = geo.attributes.position, uv = geo.attributes.uv, ix = geo.index;
+      mg.fillStyle = '#fff';
+      for (let t3 = 0; t3 < ix.count; t3 += 3) {
+        let head = true, eyes = true;
+        for (let k = 0; k < 3; k++) {
+          const v = ix.getX(t3 + k), Y = (pos.getY(v) - frame.y0) / frame.h, X = (pos.getX(v) - frame.cx) / frame.h, front = pos.getZ(v) > frame.cz;
+          if (Y < DJ.neck + .01) head = false;
+          if (!(front && Y > .78 && Y < .83 && Math.abs(X) < .075)) eyes = false;
+        }
+        if (!head || eyes) continue;
+        mg.beginPath(); for (let k = 0; k < 3; k++) { const v = ix.getX(t3 + k); mg[k ? 'lineTo' : 'moveTo'](uv.getX(v) * c.width, uv.getY(v) * c.height); } mg.closePath(); mg.fill();
+      }
+    }
+    const md = mask.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+    const paint = (i, R, G, B, l) => { const f = .35 + l; d[i] = Math.min(255, R * f); d[i + 1] = Math.min(255, G * f); d[i + 2] = Math.min(255, B * f); };
+    for (let i = 0; i < d.length; i += 4) {
+      const r = d[i], gg = d[i + 1], b = d[i + 2], mx = Math.max(r, gg, b), mn = Math.min(r, gg, b), l = (mx + mn) / 510;
+      const sat = mx === mn ? 0 : (mx - mn) / (255 - Math.abs(mx + mn - 255));
+      let hue = 0; if (mx !== mn) { hue = (mx === r ? (gg - b) / (mx - mn) + (gg < b ? 6 : 0) : mx === gg ? (b - r) / (mx - mn) + 2 : (r - gg) / (mx - mn) + 4) * 60; }
+      const vest = sat < .22 && l > .6, shorts = hue > 185 && hue < 255 && sat > .25;
+      if (outfit === 'drip') { if (vest || shorts) paint(i, 179, 32, 42, l); }
+      else { if (md[i] > 127) paint(i, 22, 22, 26, l * .5); else if (vest) paint(i, 29, 30, 36, l); else if (shorts) paint(i, 74, 81, 54, l); }
+    }
+    g.putImageData(id, 0, 0);
+    t = new THREE.CanvasTexture(c); t.flipY = map.flipY;
+  }
+  t.encoding = THREE.LinearEncoding; t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter;
+  return dogeTexCache[outfit] = t;
+}
+function buildDogeModel(outfit){
+  const {g, body} = rig(), {geo, frame, order} = dogeGeometry(), {h, cx, cz, y0} = frame;
+  const at = (X, Y) => new THREE.Vector3(cx + X * h, y0 + Y * h, cz);
+  const world = {hips: at(0, DJ.hip), head: at(0, DJ.neck), armL: at(-DJ.shoulderX, DJ.shoulder), foreL: at(-DJ.armX, DJ.elbow), armR: at(DJ.shoulderX, DJ.shoulder), foreR: at(DJ.armX, DJ.elbow), legL: at(-DJ.legX, DJ.hip), shinL: at(-DJ.legX, DJ.knee), legR: at(DJ.legX, DJ.hip), shinR: at(DJ.legX, DJ.knee)};
+  const parent = {head: 'hips', armL: 'hips', foreL: 'armL', armR: 'hips', foreR: 'armR', legL: 'hips', shinL: 'legL', legR: 'hips', shinR: 'legR'};
+  const bones = {};
+  for (const n of order) { const b = new THREE.Bone(); b.name = n; bones[n] = b; b.position.copy(world[n]); if (parent[n]) { b.position.sub(world[parent[n]]); bones[parent[n]].add(b); } }
+  bones.hips.updateMatrixWorld(true);
+  const mesh = new THREE.SkinnedMesh(geo, new THREE.MeshLambertMaterial({map: dogeTexture(outfit), skinning: true}));
+  mesh.frustumCulled = false;
+  const model = new THREE.Group(); model.add(mesh); model.add(bones.hips);
+  mesh.bind(new THREE.Skeleton(order.map(k => bones[k])));
+  const s = 2.0 / h; model.scale.setScalar(s); model.position.y = -y0 * s; body.add(model);
+  const handR = new THREE.Group(); handR.position.set(0, (DJ.wrist - DJ.elbow) * h, .02 * h); handR.scale.setScalar(1 / s); bones.foreR.add(handR);
+  return {g, body, legL: bones.legL, legR: bones.legR, armL: bones.armL, armR: bones.armR, kneeL: bones.shinL, kneeR: bones.shinR, elbowL: bones.foreL, elbowR: bones.foreR, handR, head: bones.head, armLen: .95};
+}
+function buildDoge(outfit){
+  if (dogeGLB) { try { return buildDogeModel(outfit); } catch (e) { console.warn('Doge model failed, using block Doge', e); dogeGLB = null; } }
+  return buildDogeBlocks(outfit);
 }
 const SKIN = [0xe8c4a2, 0xc68b5e, 0x8d5a3b, 0xf1d3b8, 0x6b4430];
 const SHIRT = [0xd64545, 0xe8e8e8, 0x3d7dd6, 0xf0b429, 0x2fa36b, 0x7a4fd1, 0x222222, 0xe67e22, 0x9fd3e8];
@@ -896,10 +996,12 @@ function makeGun(key){
   return g;
 }
 function attachGun(m, key){
-  if (m.gun) m.armR.remove(m.gun);
+  if (m.gun) m.gun.parent.remove(m.gun);
   m.gun = null; m.longGun = false;
   if (!key || key === 'fists') return;
-  m.gun = makeGun(key); m.longGun = GUNS[key].len > .7; m.gun.position.set(0, -m.armLen, .06); m.armR.add(m.gun);
+  m.gun = makeGun(key); m.longGun = GUNS[key].len > .7;
+  if (m.handR) { m.gun.position.set(0, 0, .06); m.handR.add(m.gun); } // model Doge: the gun follows the forearm
+  else { m.gun.position.set(0, -m.armLen, .06); m.armR.add(m.gun); }
 }
 function animate(m, speed, dt, aimPitch){
   m.walkT = (m.walkT || 0) + dt * Math.max(speed, .01) * 1.9;
@@ -908,6 +1010,13 @@ function animate(m, speed, dt, aimPitch){
   if (m.punchT > 0) { m.punchT -= dt; m.armR.rotation.x = -1.6 * Math.sin(clamp(1 - m.punchT / .3, 0, 1) * Math.PI); }
   else m.armR.rotation.x = aimPitch !== null ? -Math.PI / 2 + aimPitch : m.longGun ? -.9 : s * .8;
   m.body.position.y = Math.abs(Math.cos(m.walkT)) * a * .08;
+  if (m.kneeL) { // model Doge: knees bend on the forward swing, elbows stay slightly bent unless aiming
+    const w = m.walkT, bend = a * 1.1, rest = -(.35 + a * .45);
+    m.kneeL.rotation.x = bend * Math.max(0, -Math.cos(w)); m.kneeR.rotation.x = bend * Math.max(0, Math.cos(w));
+    m.elbowL.rotation.x = rest;
+    m.elbowR.rotation.x = m.punchT > 0 ? rest * .3 : aimPitch !== null || m.longGun ? 0 : rest;
+    m.head.rotation.z = Math.sin(w * .5) * a * .05;
+  }
 }
 
 // ---------- audio ----------
@@ -1261,6 +1370,11 @@ function setOutfit(id){
   P.outfit = id; P.m = buildDoge(id); attachGun(P.m, P.gun); scene.add(P.m.g); save();
 }
 function setGun(key){ if (!GUNS[key]) return; P.gun = key; P.reloadT = 0; if (P.m) attachGun(P.m, key); save(); }
+// Fetch the real Doge model and swap it in for the player as soon as it is here. Block Doge stays if the file never arrives.
+if (THREE.GLTFLoader) new THREE.GLTFLoader().load('doge.glb', gltf => {
+  dogeGLB = gltf;
+  if (P.m) { const old = P.m; setOutfit(P.outfit); P.m.walkT = old.walkT; P.m.g.position.copy(old.g.position); P.m.g.rotation.copy(old.g.rotation); }
+}, undefined, e => console.warn('doge.glb did not load, keeping block Doge', e));
 function cycleGun(dir){
   let i = CYCLE.indexOf(P.gun);
   for (let n = 0; n < CYCLE.length; n++) {
